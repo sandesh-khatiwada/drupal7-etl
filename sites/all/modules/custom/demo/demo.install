@@ -1,0 +1,92 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function demo_schema() {
+
+  $schema['demo_items'] = array(
+    'description' => 'Stores simple demo items.',
+    'fields' => array(
+      'id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'title' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'description' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'weight' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'created' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'title' => array('title'),
+    ),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function demo_install() {
+
+  $count = db_query("SELECT COUNT(*) FROM {demo_items}")->fetchField();
+
+  if ($count == 0) {
+
+    $items = array(
+      array(
+        'title' => 'First Demo Item',
+        'description' => 'This is a very useful first item.',
+        'weight' => 10,
+        'created' => REQUEST_TIME,
+      ),
+      array(
+        'title' => 'Second Demo Item',
+        'description' => 'Another great example entry.',
+        'weight' => 5,
+        'created' => REQUEST_TIME - 86400,
+      ),
+      array(
+        'title' => 'Third Demo Item',
+        'description' => 'The third one is special.',
+        'weight' => 0,
+        'created' => REQUEST_TIME - 172800,
+      ),
+    );
+
+    foreach ($items as $item) {
+      db_insert('demo_items')
+        ->fields($item)
+        ->execute();
+    }
+  }
+}
+
+
+/**
+ * Implements hook_uninstall().
+ */
+function demo_uninstall() {
+  // Delete the demo_items table
+  db_drop_table('demo_items');
+
+}

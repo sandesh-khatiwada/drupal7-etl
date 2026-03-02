@@ -1,0 +1,118 @@
+/* Wrapper styling */
+.demo-data-table-wrapper {
+  max-width: 900px;
+  margin: 2em auto;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* Heading */
+.demo-data-table-wrapper h2 {
+  margin-top: 0;
+  color: #13458b;
+  font-size: 1.8em;
+  border-bottom: 2px solid #13458b;
+  padding-bottom: 8px;
+}
+
+/* Add new item link */
+.demo-data-table-wrapper p a {
+  display: inline-block;
+  margin-bottom: 15px;
+  padding: 8px 14px;
+  background-color: #21b0f1;
+  color: white !important;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.demo-data-table-wrapper p a:hover {
+  background-color: #13458b;
+}
+
+/* Table styling */
+.demo-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.demo-data-table th,
+.demo-data-table td {
+  border: 1px solid #ddd;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.demo-data-table th {
+  background-color: #13458b;
+  color: white;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.demo-data-table tr:nth-child(even) {
+  background-color: #eef7fb;
+}
+
+.demo-data-table tr:hover {
+  background-color: #d9f1ff;
+}
+
+/* Edit/Delete buttons */
+.demo-data-table .operations a {
+  display: inline-block;
+  padding: 5px 10px;
+  margin-right: 5px;
+  text-decoration: none;
+  color: white;
+  font-weight: bold;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.demo-data-table .operations a:first-child {
+  background-color: #4caf50; /* Edit button green */
+}
+
+.demo-data-table .operations a:first-child:hover {
+  background-color: #357a38;
+}
+
+.demo-data-table .operations a:last-child {
+  background-color: #f44336; /* Delete button red */
+}
+
+.demo-data-table .operations a:last-child:hover {
+  background-color: #a82b20;
+}
+
+/* Client-side validation styling */
+.form-item.error input[type="text"],
+.form-item.error input[type="number"],
+.form-item.error textarea {
+  border: 2px solid #c00 !important;
+  background-color: #fff5f5;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.form-item-description.error {
+  color: #c00;
+  font-size: 0.923em;
+  margin: 0.4em 0 0 0.333em;
+  line-height: 1.3;
+}
+
+.validation-summary {
+  margin-bottom: 1em;
+  padding: 0.8em;
+  background: #fdd;
+  border: 1px solid #c00;
+  border-radius: 4px;
+}

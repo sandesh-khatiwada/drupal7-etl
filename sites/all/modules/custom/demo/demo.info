@@ -1,0 +1,6 @@
+name = Demo
+description = Demo module to create, manage and display demo items
+core = 7.x
+package = Custom
+
+stylesheets[all][] = css/demo.css
