@@ -1,0 +1,25 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+
+function etl_deferred_item_schema() {
+  $schema['reflection_log'] = array(
+    'fields' => array(
+      'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'deferred_item_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'changed' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'reflection_note' => array('type' => 'text', 'not null' => TRUE),
+      'confidence_rating' => array('type' => 'int', 'not null' => TRUE),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'uid' => array('uid'),
+      'deferred_item_id' => array('deferred_item_id'),
+    ),
+  );
+  return $schema;
+}

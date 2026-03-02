@@ -1,0 +1,281 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function etl_custom_forms_menu() {
+  $items = array();
+
+  $items['deferred-item/add'] = array(
+    'title' => 'Add Deferred Item',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('etl_custom_forms_add_form'),
+    'access arguments' => array('create deferred_item content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Form builder for adding Deferred Item.
+ */
+function etl_custom_forms_add_form($form, &$form_state) {
+  $module_path = drupal_get_path('module', 'etl_custom_forms');
+
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('What confused you?'),
+    '#required' => TRUE,
+    '#maxlength' => 255,
+  );
+
+  $form['field_reference_link'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Reference Link'),
+    '#required' => FALSE,
+  );
+
+  $form['field_what_did_you_not_understan'] = array(
+    '#type' => 'textarea',
+    '#title' => t('What did you not understand?'),
+    '#required' => TRUE,
+    '#rows' => 5,
+  );
+
+  $form['field_personal_note'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Personal Note'),
+    '#required' => FALSE,
+    '#rows' => 5,
+  );
+
+  $form['field_reminder_date'] = array(
+    '#type' => 'date_popup',
+    '#title' => t('Reminder Date'),
+    '#required' => TRUE,
+    '#date_format' => 'Y-m-d H:i',
+    '#attributes' => array(
+      'type' => 'datetime-local',   // native browser picker
+    )
+  );
+
+  // Learning Status – show as read-only text + hidden value (enforced)
+  $form['field_learning_status_display'] = array(
+    '#type' => 'item',
+    '#title' => t('Learning Status'),
+    '#markup' => t('Pending (cannot be changed at creation)'),
+  );
+
+  $form['field_learning_status'] = array(
+    '#type' => 'value',
+    '#value' => 'Pending',
+  );
+
+  $form['field_reminder_sent'] = array(
+    '#type' => 'value',
+    '#value' => 0,
+  );
+
+  $form['field_documents'] = array(
+    '#type' => 'managed_file',
+    '#title' => t('Document (image or PDF) '),
+    '#upload_location' => 'public://deferred-items/',
+    '#upload_validators' => array(
+      'file_validate_extensions' => array('pdf jpg jpeg png gif'),
+      'file_validate_size' => array(5 * 1024 * 1024),
+    ),
+    '#multiple' => FALSE,  // single file only
+    '#description' => t('Upload one related image or PDF. File size should should be less than 5MB'),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+
+  // Attach client-side validation files
+  $form['#attached']['js'][] = array(
+    'data' => $module_path . '/js/jquery.validate.min.js',
+    'type' => 'file',
+    'scope' => 'header',
+    'weight' => -20,
+  );
+
+  $form['#attached']['js'][] = array(
+    'data' => $module_path . '/js/additional-methods.min.js',
+    'type' => 'file',
+    'scope' => 'header',
+    'weight' => -19,
+  );
+
+  $form['#attached']['js'][] = array(
+    'data' => $module_path . '/js/custom-validate.js',
+    'type' => 'file',
+    'scope' => 'header',
+    'weight' => -18,
+  );
+
+  // Pass validation messages/settings to JS
+  $form['#attached']['js'][] = array(
+    'data' => array(
+      'etl' => array(
+        'validation' => array(
+          'title_minlength' => 3,
+          'title_required_msg' => t('This field is required.'),
+          'title_minlength_msg' => t('Must be at least 3 characters.'),
+          'description_required_msg' => t('This field is required.'),
+          'description_minlength_msg' => t('Must be at least 3 characters.'),
+          'link_url_msg' => t('Please enter a valid URL (e.g., https://example.com).'),
+          'date_future_msg' => t('Reminder must be in the future (date and time).'),
+        ),
+      ),
+    ),
+    'type' => 'setting',
+  );
+
+  // Attach custom CSS
+  $form['#attached']['css'][] = array(
+    'data' => $module_path . '/css/etl-form.css',
+    'type' => 'file',
+    'scope' => 'header',
+    'weight' => -10,
+  );
+
+  // Disable browser native validation
+  $form['#attributes']['novalidate'] = 'novalidate';
+
+  drupal_add_library('system', 'ui.datepicker');
+
+  return $form;
+}
+
+/**
+ * Form validation handler.
+ */
+function etl_custom_forms_add_form_validate($form, &$form_state) {
+  $values = $form_state['values'];
+
+  // Safe reminder date handling
+  $reminder_value = isset($values['field_reminder_date']) ? $values['field_reminder_date'] : '';
+
+  if (is_array($reminder_value)) {
+    $date_part = isset($reminder_value['date']) ? trim($reminder_value['date']) : '';
+    $time_part = isset($reminder_value['time']) ? trim($reminder_value['time']) : '00:00';
+    $reminder_str = $date_part . ' ' . $time_part;
+  }
+  else {
+    $reminder_str = trim($reminder_value);
+    if ($reminder_str && strpos($reminder_str, ' ') === FALSE) {
+      $reminder_str .= ' 00:00';
+    }
+  }
+
+  $reminder_timestamp = $reminder_str ? strtotime($reminder_str) : 0;
+
+  if ($reminder_timestamp && $reminder_timestamp < time()) {
+    form_set_error('field_reminder_date', t('Reminder date and time must be in the future.'));
+  }
+
+  // This line makes sure submit handler can reuse the value
+  $form_state['values']['field_reminder_date_timestamp'] = $reminder_timestamp;
+
+  // Force status to Pending
+  $form_state['values']['field_learning_status'] = 'Pending';
+
+  // Optional content check
+  if (empty($values['field_reference_link']) &&
+      empty($values['field_personal_note']) &&
+      drupal_strlen(trim($values['field_what_did_you_not_understan'])) < 20) {
+    form_set_error('field_what_did_you_not_understan',
+      t('Please provide more details: longer description, link, or personal note.'));
+  }
+}
+
+
+/**
+ * Form submit handler.
+ */
+function etl_custom_forms_add_form_submit($form, &$form_state) {
+  global $user;
+  $values = $form_state['values'];
+
+  $node = (object) array(
+    'nid' => NULL,
+    'vid' => NULL,
+    'uid' => $user->uid,
+    'title' => $values['title'],
+    'type' => 'deferred_item',
+    'language' => LANGUAGE_NONE,
+    'status' => 1,
+    'comment' => 0,
+  );
+
+  $node->field_reference_link[LANGUAGE_NONE][0]['url'] = $values['field_reference_link'];
+  $node->field_what_did_you_not_understan[LANGUAGE_NONE][0]['value'] = $values['field_what_did_you_not_understan'];
+  $node->field_personal_note[LANGUAGE_NONE][0]['value'] = $values['field_personal_note'];
+
+  // Get the timestamp that was already calculated & validated in validate handler
+  $reminder_timestamp = !empty($form_state['values']['field_reminder_date_timestamp'])
+    ? $form_state['values']['field_reminder_date_timestamp']
+    : 0;
+
+  if ($reminder_timestamp) {
+    $formatted_datetime = date('Y-m-d H:i:s', $reminder_timestamp);
+    $timezone = isset($values['field_reminder_date']['timezone'])
+      ? $values['field_reminder_date']['timezone']
+      : 'UTC';
+
+    $node->field_reminder_date[LANGUAGE_NONE][0] = array(
+      'value' => $formatted_datetime,
+      'timezone' => $timezone,
+      'timezone_db' => 'UTC',
+      'date_type' => 'datetime',
+    );
+  }
+
+  $node->field_learning_status[LANGUAGE_NONE][0]['value'] = $values['field_learning_status'];
+  $node->field_reminder_sent[LANGUAGE_NONE][0]['value'] = $values['field_reminder_sent'];
+
+  // Documents – single file
+  $attached_fid = NULL;
+
+  if (!empty($values['field_documents'])) {
+    $fid = $values['field_documents'];  
+
+    if ($fid && is_numeric($fid)) {
+      $file = file_load($fid);
+      if ($file) {
+        // Make permanent
+        $file->status = FILE_STATUS_PERMANENT;
+        file_save($file);
+
+        // Attach minimal field structure
+        $node->field_documents[LANGUAGE_NONE][0] = array(
+          'fid' => $file->fid,
+          'display' => 1,
+          'description' => '',
+        );
+
+        $attached_fid = $file->fid;
+      }
+    }
+  }
+
+  // Save the node FIRST – this assigns $node->nid
+  node_save($node);
+
+  // NOW add file usage (requires real $node->nid)
+  if ($attached_fid && $node->nid) {
+    $file = file_load($attached_fid);
+    if ($file) {
+      file_usage_add($file, 'file', 'node', $node->nid);
+    }
+  }
+
+  // Success message
+  $display_date = $reminder_timestamp ? format_date($reminder_timestamp, 'custom', 'Y-m-d H:i') : t('N/A');
+  drupal_set_message(t('Deferred Item created and reminder scheduled for @date.', array('@date' => $display_date)));
+
+  $form_state['redirect'] = 'node/' . $node->nid;
+}

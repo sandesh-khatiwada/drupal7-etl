@@ -1,0 +1,181 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function etl_deferred_item_menu() {
+  $items = array();
+
+  $items['deferred-item/%node/mark-learned'] = array(
+    'page callback' => 'etl_deferred_item_mark_learned',
+    'page arguments' => array(1),
+    'access callback' => 'etl_deferred_item_node_owner_access',
+    'access arguments' => array(1),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['deferred-item/%node/drop'] = array(
+    'page callback' => 'etl_deferred_item_drop',
+    'page arguments' => array(1),
+    'access callback' => 'etl_deferred_item_node_owner_access',
+    'access arguments' => array(1),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['deferred-item/%node/reflection'] = array(
+    'title' => 'Add Reflection Log',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('etl_deferred_item_reflection_form', 1),
+    'access callback' => 'etl_deferred_item_node_owner_access',
+    'access arguments' => array(1),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function etl_deferred_item_permission() {
+  return array(
+    'create deferred_item content' => array(
+      'title' => t('Create new deferred item content'),
+      'description' => t('Allows creating new deferred item nodes.'),
+    ),
+    'edit own deferred_item content' => array(
+      'title' => t('Edit own deferred item content'),
+      'description' => t('Allows editing deferred item nodes created by the user.'),
+    ),
+  );
+}
+
+/**
+ * Only node owner can act.
+ */
+function etl_deferred_item_node_owner_access($node, $account = NULL) {
+  if (!$node || $node->type != 'deferred_item') {
+    return FALSE;
+  }
+  if (!$account) {
+    global $user;
+    $account = $user;
+  }
+  return $node->uid == $account->uid;
+}
+
+/**
+ * Mark as learned.
+ */
+function etl_deferred_item_mark_learned($node) {
+  $lang = LANGUAGE_NONE;
+  if (empty($node->field_learning_status[$lang])) {
+    $lang = key($node->field_learning_status);
+  }
+  if (!isset($node->field_learning_status[$lang][0]['value']) || $node->field_learning_status[$lang][0]['value'] != 'Pending') {
+    drupal_access_denied();
+    return;
+  }
+  $node->field_learning_status[$lang][0]['value'] = 'Learned';
+  node_save($node);
+  drupal_set_message('Marked as Learned.');
+  drupal_goto("node/{$node->nid}");
+}
+
+/**
+ * Mark as dropped.
+ */
+function etl_deferred_item_drop($node) {
+  $lang = LANGUAGE_NONE;
+  if (empty($node->field_learning_status[$lang])) {
+    $lang = key($node->field_learning_status);
+  }
+  $node->field_learning_status[$lang][0]['value'] = 'Dropped';
+  node_save($node);
+  drupal_set_message('Item Dropped.');
+  drupal_goto("node/{$node->nid}");
+}
+
+/**
+ * Implements hook_entity_info().
+ */
+function etl_deferred_item_entity_info() {
+  return array(
+    'reflection_log' => array(
+      'label' => t('Reflection Log'),
+      'entity class' => 'ReflectionLogEntity',
+      'controller class' => 'ReflectionLogController',
+      'base table' => 'reflection_log',
+      'fieldable' => FALSE,
+      'entity keys' => array('id' => 'id', 'label' => 'id'),
+      'bundles' => array('reflection_log' => array('label' => t('Reflection Log'))),
+      'views controller class' => 'EntityDefaultViewsController',
+      'access callback' => 'etl_deferred_item_reflection_access',
+    ),
+  );
+}
+
+/**
+ * Access callback for reflection entity.
+ */
+function etl_deferred_item_reflection_access($op, $entity, $account) {
+  switch ($op) {
+    case 'view':
+    case 'update':
+    case 'delete':
+      return ($account->uid == $entity->uid);
+  }
+  return TRUE;
+}
+
+/**
+ * Reflection form.
+ */
+function etl_deferred_item_reflection_form($form, &$form_state, $node) {
+  $form['reflection_note'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Reflection Note'),
+    '#required' => TRUE,
+  );
+
+  $form['confidence'] = array(
+    '#type' => 'select',
+    '#title' => t('Confidence Rating'),
+    '#options' => array(1 => t('Again'), 2 => t('Hard'), 3 => t('Good'), 4 => t('Easy'), 5 => t('Very Easy')),
+    '#required' => TRUE,
+  );
+
+  $form['node_id'] = array(
+    '#type' => 'value',
+    '#value' => $node->nid,
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save Reflection'),
+  );
+
+  return $form;
+}
+
+/**
+ * Form submit handler.
+ */
+function etl_deferred_item_reflection_form_submit($form, &$form_state) {
+  $node_id = $form_state['values']['node_id'];
+  $node = node_load($node_id);
+  global $user;
+
+  $reflection = entity_create('reflection_log', array(
+    'uid' => $user->uid,
+    'deferred_item_id' => $node_id,
+    'created' => REQUEST_TIME,
+    'changed' => REQUEST_TIME,
+    'reflection_note' => $form_state['values']['reflection_note'],
+    'confidence_rating' => $form_state['values']['confidence'],
+  ));
+  $reflection->save();
+
+  drupal_set_message(t('Reflection saved!'));
+  drupal_goto("node/{$node->nid}");
+}

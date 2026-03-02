@@ -1,0 +1,8 @@
+name = ETL Custom Forms
+description = Custom form for adding Deferred Items with validations.
+core = 7.x
+package = Custom
+dependencies[] = node
+dependencies[] = file
+dependencies[] = date
+dependencies[] = date:date_popup    

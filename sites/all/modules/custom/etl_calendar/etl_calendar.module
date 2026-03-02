@@ -1,0 +1,197 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function etl_calendar_menu() {
+  $items = array();
+
+  $items['calendar'] = array(
+    'title' => 'My Learning Calendar',
+    'page callback' => 'etl_calendar_page',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Page callback
+ */
+function etl_calendar_page() {
+  global $user;
+  $uid = $user->uid;
+
+  $module_path = drupal_get_path('module', 'etl_calendar');
+  $events = etl_calendar_get_events($uid);
+
+  $page = array(
+'#markup' => '
+
+<div class="calendar-legend">
+  <div class="legend-item">
+    <span class="legend-color completed"></span>
+    Completed
+  </div>
+  <div class="legend-item">
+    <span class="legend-color missed"></span>
+    Missed
+  </div>
+  <div class="legend-item">
+    <span class="legend-color dropped"></span>
+    Dropped
+  </div>
+  <div class="legend-item">
+    <span class="legend-color upcoming"></span>
+    Upcoming Pending
+  </div>
+</div>
+
+<div id="calendar"></div>
+',
+  );
+
+  // CSS
+  $page['#attached']['css'][] = array(
+    'data' => $module_path . '/css/fullcalendar.min.css',
+    'type' => 'file',
+  );
+
+  $page['#attached']['css'][] = array(
+    'data' => $module_path . '/css/fullcalendar-custom.css',
+    'type' => 'file',
+  );
+
+  // JS
+  $page['#attached']['js'][] = array(
+    'data' => $module_path . '/js/moment.min.js',
+    'type' => 'file',
+    'scope' => 'footer',
+  );
+
+  $page['#attached']['js'][] = array(
+    'data' => $module_path . '/js/fullcalendar.min.js',
+    'type' => 'file',
+    'scope' => 'footer',
+  );
+
+  // Pass events
+  $page['#attached']['js'][] = array(
+    'data' => array(
+      'etl_calendar' => array(
+        'events' => $events,
+      ),
+    ),
+    'type' => 'setting',
+  );
+
+  $page['#attached']['js'][] = array(
+    'data' => $module_path . '/js/progress-calendar.js',
+    'type' => 'file',
+    'scope' => 'footer',
+  );
+
+  return $page;
+}
+
+/**
+ * Fetch events
+ */
+function etl_calendar_get_events($uid) {
+
+  $events = array();
+  $today_datetime = date('Y-m-d H:i:s');
+
+  $query = db_select('node', 'n');
+  $query->fields('n', array('nid', 'title'));
+
+  // Join status
+  $query->innerJoin(
+    'field_revision_field_learning_status',
+    's',
+    'n.vid = s.revision_id
+     AND s.entity_type = :etype1
+     AND s.bundle = :bundle1
+     AND s.deleted = 0',
+    array(
+      ':etype1' => 'node',
+      ':bundle1' => 'deferred_item',
+    )
+  );
+
+  // Join reminder datetime
+  $query->innerJoin(
+    'field_revision_field_reminder_date',
+    'r',
+    'n.vid = r.revision_id
+     AND r.entity_type = :etype2
+     AND r.bundle = :bundle2
+     AND r.deleted = 0',
+    array(
+      ':etype2' => 'node',
+      ':bundle2' => 'deferred_item',
+    )
+  );
+
+  $query->condition('n.type', 'deferred_item');
+  $query->condition('n.uid', $uid);
+  $query->condition('n.status', 1);
+
+  $query->addField('r', 'field_reminder_date_value', 'reminder_datetime');
+  $query->addField('s', 'field_learning_status_value', 'learning_status');
+
+  $result = $query->execute();
+
+  foreach ($result as $row) {
+
+    $reminder_datetime = $row->reminder_datetime;
+    $status = $row->learning_status;
+
+    $is_past = ($reminder_datetime < $today_datetime);
+
+    $class_name = '';
+    $color = '#f39c12';
+
+    if ($is_past) {
+      if ($status == 'Learned') {
+        $class_name = 'event-completed';
+        $color = '#27ae60';
+      }
+      elseif ($status == 'Pending') {
+        $class_name = 'event-missed';
+        $color = '#e74c3c';
+      }
+      elseif ($status == 'Dropped') {
+        $class_name = 'event-dropped';
+        $color = '#7f8c8d';
+      }
+    }
+    else {
+      if ($status == 'Learned') {
+        $class_name = 'event-upcoming-learned';
+        $color = '#2ecc71';
+      }
+      elseif ($status == 'Dropped') {
+        $class_name = 'event-upcoming-dropped';
+        $color = '#95a5a6';
+      }
+      else {
+        $class_name = 'event-upcoming-pending';
+        $color = '#f39c12';
+      }
+    }
+
+    $events[] = array(
+      'title' => $row->title,
+      'start' => $reminder_datetime,  // FULL datetime
+      'allDay' => FALSE,              // required
+      'url' => url('node/' . $row->nid),
+      'className' => $class_name,
+      'backgroundColor' => $color,
+      'borderColor' => $color,
+    );
+  }
+
+  return $events;
+}

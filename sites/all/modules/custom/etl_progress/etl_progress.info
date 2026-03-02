@@ -1,0 +1,5 @@
+name = ETL Progress Visualizations
+description = Custom charts for user learning progress (Deferred Items).
+core = 7.x
+package = Custom
+dependencies[] = node

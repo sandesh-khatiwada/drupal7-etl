@@ -1,0 +1,170 @@
+/* ==========================================================================
+   AUTH PAGES - GLOBAL STYLES
+   ========================================================================== */
+
+body.page-user-login,
+body.page-user-register,
+body.page-user-password {
+  background-color: #f8f9fa; /* Light gray fallback */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
+  margin: 0;
+}
+
+/* Full viewport wrapper (can have background image if needed) */
+.auth-page-wrapper {
+  min-height: 100vh;
+  background: #f8f9fa url('path/to/your-background.jpg') no-repeat center center / cover;
+  padding: 20px 0;
+}
+
+/* ==========================================================================
+   MAIN CONTAINER (outer white box)
+   ========================================================================== */
+
+body.page-user #main-wrapper {
+  max-width: 700px;              /* ← increased width – adjust as needed: 960px–1200px */
+  width: 90%;
+  margin: 60px auto;
+  padding: 40px 30px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   BRANDING HEADER (logo left + title right)
+   ========================================================================== */
+
+.auth-brand-header {
+  display: flex;
+  align-items: center;
+  gap: 0px;
+  margin-bottom: 40px;
+  /* justify-content: center;  */
+}
+
+.brand-logo-link {
+  display: block;
+  line-height: 0;
+}
+
+.brand-logo {
+  width: 200px;                    /* adjust size to match your clock logo */
+  height: 70px;
+  object-fit: contain;
+}
+
+.brand-title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: #333;
+  line-height: 1.2;
+}
+
+/* Stack on small screens */
+@media (max-width: 480px) {
+  .auth-brand-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+  .brand-title {
+    font-size: 26px;
+  }
+}
+
+/* ==========================================================================
+   FORM CONTAINER & ELEMENTS
+   ========================================================================== */
+
+.auth-form-wrapper {
+  max-width: 850px;               /* ← wider inner form area */
+  margin: 0 auto;
+  padding: 0;                     /* padding now on outer container */
+}
+
+/* Form item wrappers (from your custom templates) */
+.form-item-wrapper,
+body.page-user .form-item {
+  margin-bottom: 28px;
+}
+
+body.page-user label {
+  font-weight: 600;
+  color: #333;
+  display: block;
+  margin-bottom: 8px;
+}
+
+body.page-user input[type="text"],
+body.page-user input[type="email"],
+body.page-user input[type="password"] {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+/* Submit button */
+.form-actions-wrapper .form-submit,
+body.page-user .form-submit {
+  width: 100%;
+  padding: 14px 24px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.form-actions-wrapper .form-submit:hover,
+body.page-user .form-submit:hover {
+  background-color: #0069d9;
+}
+
+/* Cross-links / helper links */
+.form-links,
+.auth-cross-links {
+  text-align: center;
+  margin-top: 28px;
+  font-size: 15px;
+  color: #555;
+}
+
+.form-links a,
+.auth-cross-links a {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.form-links a:hover,
+.auth-cross-links a:hover {
+  text-decoration: underline;
+}
+
+/* Hide unwanted core elements */
+body.page-user ul.primary,
+body.page-user .item-list ul li a[href*="user/register"] ~ /* hide core links if still appearing */
+{
+  display: none;
+}
+
+/* Optional: description/help text styling */
+.form-description,
+body.page-user .description {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+

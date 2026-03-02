@@ -1,0 +1,32 @@
+.form-item.error input,
+.form-item.error textarea,
+.form-item.error select {
+  border: 1px solid #c00 !important;
+  background-color: #fff5f5;
+}
+
+.form-item-description.error {
+  color: #c00;
+  font-size: 0.9em;
+  margin-top: 4px;
+}
+
+.form-item label {
+  font-weight: 600;
+  color: #333;
+}
+
+.form-item input[type="text"],
+.form-item textarea {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-item input:focus,
+.form-item textarea:focus {
+  border-color: #0074bd;
+  box-shadow: 0 0 5px rgba(0, 116, 189, 0.3);
+}

@@ -1,0 +1,156 @@
+<?php
+
+/**
+ * @file
+ * Web test for ETL Deferred Item module.
+ */
+
+class ETLDeferredItemWebTest extends DrupalWebTestCase {
+
+  public static function getInfo() {
+    return array(
+      'name' => 'ETL Deferred Item Web Test',
+      'description' => 'Tests status transitions and reflection form.',
+      'group' => 'ETL Deferred Item',
+    );
+  }
+
+  public function setUp() {
+    parent::setUp(array('etl_deferred_item', 'node', 'field', 'user', 'entity'));
+
+    // Create content type
+    $type = (object) array(
+      'type' => 'deferred_item',
+      'name' => 'Deferred Item',
+      'base' => 'node_content',
+      'has_title' => 1,
+      'title_label' => 'Title',
+    );
+    node_type_save($type);
+
+    // Create field
+    field_create_field(array(
+      'field_name' => 'field_learning_status',
+      'type' => 'list_text',
+      'cardinality' => 1,
+    ));
+
+    field_create_instance(array(
+      'field_name' => 'field_learning_status',
+      'entity_type' => 'node',
+      'bundle' => 'deferred_item',
+      'label' => 'Learning Status',
+      'widget' => array('type' => 'options_select'),
+      'settings' => array(
+        'allowed_values' => "Pending|Pending\nLearned|Learned\nDropped|Dropped",
+      ),
+    ));
+
+    // Optional: help dynamic node perms (not always needed once hook_permission is added)
+    node_types_rebuild();
+  }
+
+  protected function createTestUserAndNode() {
+    $permissions = array(
+      'create deferred_item content',
+      'edit own deferred_item content',
+      'access content',
+    );
+
+    $user = $this->drupalCreateUser($permissions);
+
+    if (!$user || empty($user->uid)) {
+      $this->fail('Failed to create test user with permissions: ' . implode(', ', $permissions));
+      return array(NULL, NULL);
+    }
+
+    $node = $this->drupalCreateNode(array(
+      'type' => 'deferred_item',
+      'uid' => $user->uid,
+      'title' => $this->randomName(10),
+      'field_learning_status' => array(
+        LANGUAGE_NONE => array(array('value' => 'Pending')),
+      ),
+    ));
+
+    if (!$node || empty($node->nid)) {
+      $this->fail('Failed to create test node for user uid ' . $user->uid);
+      return array($user, NULL);
+    }
+
+    return array($user, $node);
+  }
+
+  public function testMarkAsLearned() {
+    list($user, $node) = $this->createTestUserAndNode();
+
+    if (!$user || !$node) {
+      return;
+    }
+
+    $this->drupalLogin($user);
+
+    $this->drupalGet("deferred-item/{$node->nid}/mark-learned");
+    $this->assertResponse(200);
+    $this->assertText('Marked as Learned.');
+
+    $node = node_load($node->nid, NULL, TRUE);
+    $this->assertEqual(
+      $node->field_learning_status[LANGUAGE_NONE][0]['value'],
+      'Learned',
+      'Status updated to Learned'
+    );
+  }
+
+  public function testMarkAsDropped() {
+    list($user, $node) = $this->createTestUserAndNode();
+
+    if (!$user || !$node) {
+      return;
+    }
+
+    $this->drupalLogin($user);
+
+    $this->drupalGet("deferred-item/{$node->nid}/drop");
+    $this->assertResponse(200);
+    $this->assertText('Item Dropped.');
+
+    $node = node_load($node->nid, NULL, TRUE);
+    $this->assertEqual(
+      $node->field_learning_status[LANGUAGE_NONE][0]['value'],
+      'Dropped',
+      'Status updated to Dropped'
+    );
+  }
+
+  public function testReflectionSubmission() {
+    list($user, $node) = $this->createTestUserAndNode();
+
+    if (!$user || !$node) {
+      return;
+    }
+
+    $this->drupalLogin($user);
+
+    $edit = array(
+      'reflection_note' => 'This is my test reflection note.',
+      'confidence' => '3',
+    );
+
+    $this->drupalPost(
+      "deferred-item/{$node->nid}/reflection",
+      $edit,
+      t('Save Reflection')
+    );
+
+    $this->assertResponse(200);
+    $this->assertText('Reflection saved!');
+
+    $results = entity_load('reflection_log', FALSE, array(
+      'deferred_item_id' => $node->nid,
+      'uid' => $user->uid,
+    ));
+
+    $this->assertTrue(!empty($results), 'Reflection log entity created.');
+  }
+}

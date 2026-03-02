@@ -1,0 +1,13 @@
+name = ETL Deferred Item
+description = Domain logic for Deferred Items (status transitions, lifecycle actions, Reflection Log entity).
+core = 7.x
+package = Custom
+
+dependencies[] = node
+dependencies[] = user
+dependencies[] = entity
+
+files[] = includes/ReflectionLogEntity.inc
+files[] = includes/ReflectionLogController.inc  
+files[] = tests/etl_deferred_item.web.test
+files[] = tests/etl_deferred_item.unit.test

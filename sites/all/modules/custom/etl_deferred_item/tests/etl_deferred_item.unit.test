@@ -1,0 +1,26 @@
+<?php
+
+class ETLReflectionEntityUnitTest extends DrupalUnitTestCase {
+
+  public static function getInfo() {
+    return array(
+      'name' => 'ETL Reflection Entity Unit Test',
+      'description' => 'Tests the reflection entity access callbacks.',
+      'group' => 'ETL Deferred Item',
+    );
+  }
+
+  public function setUp() {
+    parent::setUp(array('etl_deferred_item', 'node', 'entity'));
+  }
+
+  public function testReflectionAccessCallback() {
+    $reflection = (object) array('uid' => 1);
+
+    $owner = (object) array('uid' => 1);
+    $this->assertTrue(etl_deferred_item_reflection_access('view', $reflection, $owner), 'Owner can access entity.');
+
+    $nonOwner = (object) array('uid' => 2);
+    $this->assertFalse(etl_deferred_item_reflection_access('view', $reflection, $nonOwner), 'Non-owner cannot access entity.');
+  }
+}

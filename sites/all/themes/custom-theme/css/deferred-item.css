@@ -1,0 +1,273 @@
+/* =======================
+   Deferred Item Node View
+   Premium Single Card Layout
+======================= */
+
+/* Page Background */
+body.page-node {
+  background: linear-gradient(135deg, #f5f7fa, #e9eef5);
+  font-family: "Inter", sans-serif;
+}
+
+/* Wrapper */
+.di-wrapper {
+  max-width: 1100px;
+  margin: 60px auto;
+  padding: 0 20px;
+}
+
+/* Main Card */
+.di-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 40px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.08);
+  transition: all 0.25s ease;
+}
+
+/* Header */
+.di-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.di-title-area h1 {
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+/* Meta */
+.di-meta {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.di-status {
+  padding: 6px 16px;
+  border-radius: 40px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.di-status-pending {
+  background: #fff4e5;
+  color: #b26a00;
+}
+
+.di-status-learned {
+  background: #e6f7ee;
+  color: #1b7f4c;
+}
+
+.di-status-dropped {
+  background: #fdecea;
+  color: #b42318;
+}
+
+.di-reminder {
+  font-size: 14px;
+  color: #555;
+}
+
+.di-reminder .di-icon {
+  margin-right: 5px;
+}
+
+/* Divider */
+.di-divider {
+  height: 1px;
+  background: #eee;
+  margin: 30px 0;
+}
+
+/* Body Layout */
+.di-body {
+  display: grid;
+  grid-template-columns: 1fr auto; /* Left main content, right side content auto width */
+  gap: 24px;
+  align-items: start;
+}
+
+/* Main Content Column */
+.di-main {
+  min-width: 0; /* prevent overflow of long text */
+}
+
+/* Sections */
+.di-section {
+  margin-bottom: 24px;
+}
+
+.di-section-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.di-section-content {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #444;
+}
+
+/* Side Column */
+.di-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Side Boxes */
+.di-side-box {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #edf1f5;
+  font-size: 14px;
+}
+
+.di-side-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Actions */
+.di-actions a {
+  text-decoration: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  margin-left: 10px;
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+.di-actions .btn-success {
+  background: #28a745;
+  color: white;
+}
+
+.di-actions .btn-success:hover {
+  background: #218838;
+}
+
+.di-actions .btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.di-actions .btn-primary:hover {
+  background: #0069d9;
+}
+
+.di-actions .btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.di-actions .btn-danger:hover {
+  background: #c82333;
+}
+
+/* Responsive for smaller screens */
+@media (max-width: 900px) {
+  .di-body {
+    grid-template-columns: 1fr;
+  }
+
+  .di-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .di-actions {
+    margin-top: 15px;
+  }
+}
+
+
+
+/* =======================
+   Reflection History Cards
+======================= */
+
+.di-reflections {
+  margin-top: 40px;
+}
+
+.di-reflections h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #1a1a1a;
+}
+
+.di-reflection-card {
+  background: #fefefe;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.di-reflection-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.08);
+}
+
+/* Header with date and confidence */
+.di-reflection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.di-reflection-date {
+  font-size: 13px;
+  font-weight: 500;
+  color: #777;
+}
+
+.di-reflection-confidence {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  background: #f0f4f8;
+  padding: 2px 10px;
+  border-radius: 12px;
+}
+
+/* Note body */
+.di-reflection-note {
+  font-size: 15px;
+  line-height: 1.65;
+  color: #333;
+  white-space: pre-wrap; /* preserve line breaks */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .di-reflection-card {
+    padding: 16px 18px;
+  }
+
+  .di-reflection-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}

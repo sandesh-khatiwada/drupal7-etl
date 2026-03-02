@@ -1,0 +1,266 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function etl_progress_menu() {
+  $items = array();
+
+  $items['progress'] = array(
+    'title'            => 'My Learning Progress',
+    'page callback'    => 'etl_progress_page',
+    'access callback' => 'user_is_logged_in',
+    'type'             => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Page callback: /progress
+ */
+function etl_progress_page() {
+  $module_path = drupal_get_path('module', 'etl_progress');
+  $chart_data = etl_progress_get_chart_data();
+
+  $page = array('#markup' => '');
+
+  // Chart.js
+  $page['#attached']['js'][] = array(
+    'data' => $module_path . '/js/chart.min.js',
+    'type' => 'file',
+    'scope' => 'header',
+  );
+
+  // Custom JS
+  $page['#attached']['js'][] = array(
+    'data' => $module_path . '/js/progress-charts.js',
+    'type' => 'file',
+    'scope' => 'footer',
+  );
+
+  // Drupal.settings
+  $page['#attached']['js'][] = array(
+    'data' => array(
+      'etl_progress' => array(
+        'chart_data' => $chart_data,
+      ),
+    ),
+    'type' => 'setting',
+  );
+
+  // CSS
+  $page['#attached']['css'][] = array(
+    'data' => $module_path . '/css/progress.css',
+    'type' => 'file',
+  );
+
+  // Markup
+  $page['#markup'] .= '<div class="progress-container">';
+  $page['#markup'] .= '<h1>' . t('My Learning Progress') . '</h1>';
+
+  $page['#markup'] .= '<div class="chart-row">';
+
+  $page['#markup'] .= '<div class="chart-card">';
+  $page['#markup'] .= '<h2>' . t('Status Breakdown') . '</h2>';
+  $page['#markup'] .= '<canvas id="statusPieChart"></canvas>';
+  $page['#markup'] .= '</div>';
+
+  $page['#markup'] .= '<div class="chart-card">';
+  $page['#markup'] .= '<h2>' . t('Items Learned Over Time') . '</h2>';
+  $page['#markup'] .= '<canvas id="timeLineChart"></canvas>';
+  $page['#markup'] .= '</div>';
+
+  $page['#markup'] .= '</div>';
+
+  $page['#markup'] .= '<div class="progress-summary">';
+  $page['#markup'] .= '<h2>' . t('Overall Completion') . '</h2>';
+  $page['#markup'] .= '<div class="progress-bar-outer">';
+  $page['#markup'] .= '<div class="progress-bar-inner" style="width:' . $chart_data['completion'] . '%"></div>';
+  $page['#markup'] .= '<span>' . $chart_data['completion'] . '%</span>';
+  $page['#markup'] .= '</div>';
+  $page['#markup'] .= '</div>';
+
+  $page['#markup'] .= '</div>';
+
+  return $page;
+}
+
+/**
+ * Collect data for charts
+ */
+
+function etl_progress_get_chart_data() {
+  global $user;
+  $uid = $user->uid;
+
+  /**
+   * TOTAL ITEMS
+   */
+  $total = db_select('node', 'n')
+    ->condition('n.type', 'deferred_item')
+    ->condition('n.uid', $uid)
+    ->condition('n.status', 1)
+    ->countQuery()
+    ->execute()
+    ->fetchField();
+
+  /**
+   * STATUS BREAKDOWN
+   */
+  $status_query = db_select('node', 'n');
+
+  $status_query->innerJoin(
+    'field_revision_field_learning_status',
+    's',
+    'n.vid = s.revision_id
+     AND s.entity_type = :etype
+     AND s.bundle = :bundle
+     AND s.deleted = 0',
+    array(
+      ':etype' => 'node',
+      ':bundle' => 'deferred_item',
+    )
+  );
+
+  $status_query->condition('n.type', 'deferred_item');
+  $status_query->condition('n.uid', $uid);
+  $status_query->condition('n.status', 1);
+
+  $status_query->addField('s', 'field_learning_status_value', 'status');
+  $status_query->addExpression('COUNT(DISTINCT n.nid)', 'count');
+
+  $status_query->groupBy('s.field_learning_status_value');
+
+
+/**
+*   Final query :
+*   SELECT 
+*   s.field_learning_status_value AS status,
+*   COUNT(DISTINCT n.nid) AS count
+* FROM node n
+* INNER JOIN field_revision_field_learning_status s 
+*   ON n.vid = s.revision_id 
+*   AND s.entity_type = 'node' 
+*   AND s.bundle = 'deferred_item' 
+*   AND s.deleted = 0
+* WHERE n.type = 'deferred_item'
+*   AND n.uid = :uid
+*   AND n.status = 1
+* GROUP BY s.field_learning_status_value    
+*/
+
+  $result = $status_query->execute()->fetchAll();
+
+  $status_data = array(
+    'Pending' => 0,
+    'Learned' => 0,
+    'Dropped' => 0,
+  );
+
+  foreach ($result as $row) {
+    if (!empty($row->status)) {
+      $status_data[$row->status] = (int) $row->count;
+    }
+  }
+
+  /**
+   * LEARNED PER MONTH
+   */
+  $monthly_query = db_select('node', 'n');
+
+  $monthly_query->innerJoin(
+    'field_revision_field_learning_status',
+    's',
+    'n.vid = s.revision_id
+     AND s.entity_type = :etype
+     AND s.bundle = :bundle
+     AND s.deleted = 0',
+    array(
+      ':etype' => 'node',
+      ':bundle' => 'deferred_item',
+    )
+  );
+
+  $monthly_query->condition('n.type', 'deferred_item');
+  $monthly_query->condition('n.uid', $uid);
+  $monthly_query->condition('n.status', 1);
+  $monthly_query->condition('s.field_learning_status_value', 'Learned');
+  $monthly_query->condition('n.created', strtotime('-12 months'), '>=');
+
+  $monthly_query->addExpression(
+    "DATE_FORMAT(FROM_UNIXTIME(n.created), '%Y-%m')",
+    'month'
+  );
+
+  $monthly_query->addExpression(
+    'COUNT(DISTINCT n.nid)',
+    'count'
+  );
+
+  $monthly_query->groupBy('month');
+  $monthly_query->orderBy('month');
+
+/** 
+*   Final Query :
+*   SELECT 
+*   DATE_FORMAT(FROM_UNIXTIME(n.created), '%Y-%m') AS month,
+*   COUNT(DISTINCT n.nid) AS count
+* FROM node n
+* INNER JOIN field_revision_field_learning_status s 
+*   ON n.vid = s.revision_id 
+*   AND s.entity_type = 'node' 
+*   AND s.bundle = 'deferred_item' 
+*   AND s.deleted = 0
+* WHERE n.type = 'deferred_item'
+*   AND n.uid = :uid
+*   AND n.status = 1
+*   AND s.field_learning_status_value = 'Learned'
+*   AND n.created >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 12 MONTH))
+* GROUP BY month
+* ORDER BY month
+*/
+
+  $result = $monthly_query->execute()->fetchAll();
+
+  $monthly = array();
+  foreach ($result as $row) {
+    $monthly[$row->month] = $row->count;
+  }
+
+  $months = array();
+  $counts = array();
+  $start = strtotime('-11 months');
+
+  for ($i = 0; $i < 12; $i++) {
+    $timestamp = strtotime("+$i month", $start);
+    $ym = date('Y-m', $timestamp);
+
+    $months[] = date('M Y', $timestamp);
+    $counts[] = isset($monthly[$ym]) ? (int) $monthly[$ym] : 0;
+  }
+
+  /**
+   * COMPLETION %
+   */
+  $learned = $status_data['Learned'];
+
+  $completion = $total > 0
+    ? round(($learned / $total) * 100, 1)
+    : 0;
+
+  return array(
+    'status' => array(
+      'labels' => array_keys($status_data),
+      'data' => array_values($status_data),
+      'colors' => array('#f39c12', '#27ae60', '#c0392b'),
+    ),
+    'time' => array(
+      'labels' => $months,
+      'data' => $counts,
+    ),
+    'completion' => $completion,
+    'total' => $total,
+    'learned' => $learned,
+  );
+}
