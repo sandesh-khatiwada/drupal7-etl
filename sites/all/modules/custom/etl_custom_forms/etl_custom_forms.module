@@ -89,6 +89,35 @@ function etl_custom_forms_add_form($form, &$form_state) {
     '#description' => t('Upload one related image or PDF. File size should should be less than 5MB'),
   );
 
+  // =====================================================
+  // Conflict message for ±30 min
+  // =====================================================
+  if (!empty($form_state['storage']['conflict_info'])) {
+    $conflict = $form_state['storage']['conflict_info'];
+
+    if ($conflict['type'] === 'near') {
+      $form['conflict_message'] = array(
+        '#markup' => '<div class="messages warning">'
+          . t('You have another reminder close to the requested date and time.<br>Title: @title<br>Reminder Date: @date<br>Reminder Time: @time<br>Would you like to continue?', array(
+              '@title' => $conflict['title'],
+              '@date' => date('Y-m-d', $conflict['timestamp']),
+              '@time' => date('H:i', $conflict['timestamp']),
+          ))
+          . '</div>',
+      );
+
+      $form['confirm_conflict'] = array(
+        '#type' => 'radios',
+        '#title' => t('Do you want to continue?'),
+        '#options' => array(
+          'yes' => t('Yes'),
+          'no' => t('No'),
+        ),
+        '#required' => TRUE,
+      );
+    }
+  }
+
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Save'),
@@ -177,7 +206,7 @@ function etl_custom_forms_add_form_validate($form, &$form_state) {
     form_set_error('field_reminder_date', t('Reminder date and time must be in the future.'));
   }
 
-  // This line makes sure submit handler can reuse the value
+  // Save timestamp for submit handler
   $form_state['values']['field_reminder_date_timestamp'] = $reminder_timestamp;
 
   // Force status to Pending
@@ -190,8 +219,64 @@ function etl_custom_forms_add_form_validate($form, &$form_state) {
     form_set_error('field_what_did_you_not_understan',
       t('Please provide more details: longer description, link, or personal note.'));
   }
-}
 
+  // =====================================================
+  // Conflict checks (exact datetime + ±30 min)
+  // =====================================================
+  if ($reminder_timestamp) {
+    global $user;
+
+    // Exact datetime conflict
+    $query = new EntityFieldQuery();
+    $exact_result = $query
+      ->entityCondition('entity_type', 'node')
+      ->entityCondition('bundle', 'deferred_item')
+      ->propertyCondition('uid', $user->uid)
+      ->fieldCondition('field_reminder_date', 'value', date('Y-m-d H:i:s', $reminder_timestamp), '=')
+      ->fieldCondition('field_learning_status', 'value', 'Dropped', '<>')
+      ->execute();
+
+    if (!empty($exact_result['node'])) {
+      form_set_error('field_reminder_date', t('There is another reminder set for this exact date and time, please select a different date and time.'));
+      return;
+    }
+
+    // ±30 min conflict
+    $start = $reminder_timestamp - (30 * 60);
+    $end   = $reminder_timestamp + (30 * 60);
+
+    $query2 = new EntityFieldQuery();
+    $result2 = $query2
+      ->entityCondition('entity_type', 'node')
+      ->entityCondition('bundle', 'deferred_item')
+      ->propertyCondition('uid', $user->uid)
+      ->fieldCondition('field_reminder_date', 'value', date('Y-m-d H:i:s', $start), '>=')
+      ->fieldCondition('field_reminder_date', 'value', date('Y-m-d H:i:s', $end), '<=')
+      ->fieldCondition('field_learning_status', 'value', 'Dropped', '<>')
+      ->execute();
+
+    if (!empty($result2['node'])) {
+      $nid = key($result2['node']);
+      $conflict_node = node_load($nid);
+
+      if (empty($form_state['storage']['conflict_info'])) {
+        $form_state['storage']['conflict_info'] = array(
+          'title' => $conflict_node->title,
+          'timestamp' => strtotime($conflict_node->field_reminder_date[LANGUAGE_NONE][0]['value']),
+          'type' => 'near',
+        );
+        $form_state['rebuild'] = TRUE;
+        return;
+      }
+
+      // User chose No
+      if (!empty($form_state['values']['confirm_conflict']) && $form_state['values']['confirm_conflict'] == 'no') {
+        form_set_error('field_reminder_date', t('Please choose a different date and time.'));
+        return;
+      }
+    }
+  }
+}
 
 /**
  * Form submit handler.
@@ -215,7 +300,6 @@ function etl_custom_forms_add_form_submit($form, &$form_state) {
   $node->field_what_did_you_not_understan[LANGUAGE_NONE][0]['value'] = $values['field_what_did_you_not_understan'];
   $node->field_personal_note[LANGUAGE_NONE][0]['value'] = $values['field_personal_note'];
 
-  // Get the timestamp that was already calculated & validated in validate handler
   $reminder_timestamp = !empty($form_state['values']['field_reminder_date_timestamp'])
     ? $form_state['values']['field_reminder_date_timestamp']
     : 0;
@@ -237,20 +321,16 @@ function etl_custom_forms_add_form_submit($form, &$form_state) {
   $node->field_learning_status[LANGUAGE_NONE][0]['value'] = $values['field_learning_status'];
   $node->field_reminder_sent[LANGUAGE_NONE][0]['value'] = $values['field_reminder_sent'];
 
-  // Documents – single file
   $attached_fid = NULL;
 
   if (!empty($values['field_documents'])) {
-    $fid = $values['field_documents'];  
-
+    $fid = $values['field_documents'];
     if ($fid && is_numeric($fid)) {
       $file = file_load($fid);
       if ($file) {
-        // Make permanent
         $file->status = FILE_STATUS_PERMANENT;
         file_save($file);
 
-        // Attach minimal field structure
         $node->field_documents[LANGUAGE_NONE][0] = array(
           'fid' => $file->fid,
           'display' => 1,
@@ -262,10 +342,8 @@ function etl_custom_forms_add_form_submit($form, &$form_state) {
     }
   }
 
-  // Save the node FIRST – this assigns $node->nid
   node_save($node);
 
-  // NOW add file usage (requires real $node->nid)
   if ($attached_fid && $node->nid) {
     $file = file_load($attached_fid);
     if ($file) {
@@ -273,7 +351,6 @@ function etl_custom_forms_add_form_submit($form, &$form_state) {
     }
   }
 
-  // Success message
   $display_date = $reminder_timestamp ? format_date($reminder_timestamp, 'custom', 'Y-m-d H:i') : t('N/A');
   drupal_set_message(t('Deferred Item created and reminder scheduled for @date.', array('@date' => $display_date)));
 

@@ -1,7 +1,8 @@
 <?php
 
-/**
- * Implements hook_menu().
+/* =========================================================
+ * MENU
+ * =========================================================
  */
 function etl_deferred_item_menu() {
   $items = array();
@@ -34,24 +35,61 @@ function etl_deferred_item_menu() {
   return $items;
 }
 
-/**
- * Implements hook_permission().
+/* =========================================================
+ * PERMISSIONS
+ * =========================================================
  */
 function etl_deferred_item_permission() {
   return array(
     'create deferred_item content' => array(
       'title' => t('Create new deferred item content'),
-      'description' => t('Allows creating new deferred item nodes.'),
     ),
     'edit own deferred_item content' => array(
       'title' => t('Edit own deferred item content'),
-      'description' => t('Allows editing deferred item nodes created by the user.'),
     ),
   );
 }
 
-/**
- * Only node owner can act.
+/* =========================================================
+ * ENTITY REGISTRATION
+ * =========================================================
+ */
+function etl_deferred_item_entity_info() {
+  return array(
+    'reflection_log' => array(
+      'label' => t('Reflection Log'),
+      'entity class' => 'ReflectionLogEntity',
+      'controller class' => 'ReflectionLogController',
+      'base table' => 'reflection_log',
+      'fieldable' => FALSE,
+      'entity keys' => array(
+        'id' => 'id',
+        'label' => 'id',
+      ),
+      'bundles' => array(
+        'reflection_log' => array(
+          'label' => t('Reflection Log'),
+        ),
+      ),
+      'views controller class' => 'EntityDefaultViewsController',
+      'access callback' => 'etl_deferred_item_reflection_access',
+    ),
+  );
+}
+
+function etl_deferred_item_reflection_access($op, $entity, $account) {
+  switch ($op) {
+    case 'view':
+    case 'update':
+    case 'delete':
+      return ($account->uid == $entity->uid);
+  }
+  return TRUE;
+}
+
+/* =========================================================
+ * OWNER ACCESS
+ * =========================================================
  */
 function etl_deferred_item_node_owner_access($node, $account = NULL) {
   if (!$node || $node->type != 'deferred_item') {
@@ -64,74 +102,42 @@ function etl_deferred_item_node_owner_access($node, $account = NULL) {
   return $node->uid == $account->uid;
 }
 
-/**
- * Mark as learned.
+/* =========================================================
+ * STATUS TRANSITIONS
+ * =========================================================
  */
 function etl_deferred_item_mark_learned($node) {
   $lang = LANGUAGE_NONE;
-  if (empty($node->field_learning_status[$lang])) {
-    $lang = key($node->field_learning_status);
-  }
-  if (!isset($node->field_learning_status[$lang][0]['value']) || $node->field_learning_status[$lang][0]['value'] != 'Pending') {
+
+  if (!isset($node->field_learning_status[$lang][0]['value']) ||
+      $node->field_learning_status[$lang][0]['value'] != 'Pending') {
     drupal_access_denied();
     return;
   }
+
   $node->field_learning_status[$lang][0]['value'] = 'Learned';
   node_save($node);
-  drupal_set_message('Marked as Learned.');
+
+  drupal_set_message(t('Marked as Learned.'));
   drupal_goto("node/{$node->nid}");
 }
 
-/**
- * Mark as dropped.
- */
 function etl_deferred_item_drop($node) {
   $lang = LANGUAGE_NONE;
-  if (empty($node->field_learning_status[$lang])) {
-    $lang = key($node->field_learning_status);
-  }
+
   $node->field_learning_status[$lang][0]['value'] = 'Dropped';
   node_save($node);
-  drupal_set_message('Item Dropped.');
+
+  drupal_set_message(t('Item Dropped.'));
   drupal_goto("node/{$node->nid}");
 }
 
-/**
- * Implements hook_entity_info().
- */
-function etl_deferred_item_entity_info() {
-  return array(
-    'reflection_log' => array(
-      'label' => t('Reflection Log'),
-      'entity class' => 'ReflectionLogEntity',
-      'controller class' => 'ReflectionLogController',
-      'base table' => 'reflection_log',
-      'fieldable' => FALSE,
-      'entity keys' => array('id' => 'id', 'label' => 'id'),
-      'bundles' => array('reflection_log' => array('label' => t('Reflection Log'))),
-      'views controller class' => 'EntityDefaultViewsController',
-      'access callback' => 'etl_deferred_item_reflection_access',
-    ),
-  );
-}
-
-/**
- * Access callback for reflection entity.
- */
-function etl_deferred_item_reflection_access($op, $entity, $account) {
-  switch ($op) {
-    case 'view':
-    case 'update':
-    case 'delete':
-      return ($account->uid == $entity->uid);
-  }
-  return TRUE;
-}
-
-/**
- * Reflection form.
+/* =========================================================
+ * REFLECTION FORM
+ * =========================================================
  */
 function etl_deferred_item_reflection_form($form, &$form_state, $node) {
+
   $form['reflection_note'] = array(
     '#type' => 'textarea',
     '#title' => t('Reflection Note'),
@@ -141,9 +147,70 @@ function etl_deferred_item_reflection_form($form, &$form_state, $node) {
   $form['confidence'] = array(
     '#type' => 'select',
     '#title' => t('Confidence Rating'),
-    '#options' => array(1 => t('Again'), 2 => t('Hard'), 3 => t('Good'), 4 => t('Easy'), 5 => t('Very Easy')),
+    '#options' => array(
+      1 => t('Again'),
+      2 => t('Hard'),
+      3 => t('Good'),
+      4 => t('Easy'),
+      5 => t('Very Easy'),
+    ),
     '#required' => TRUE,
   );
+
+  $form['new_reminder_date'] = array(
+    '#type' => 'date_popup',
+    '#title' => t('New Reminder Date & Time'),
+    '#date_format' => 'Y-m-d H:i',
+    '#date_increment' => 1,
+    '#description' => t('Required only if confidence is Again.'),
+    '#states' => array(
+      'visible' => array(
+        ':input[name="confidence"]' => array('value' => '1'),
+      ),
+      'required' => array(
+        ':input[name="confidence"]' => array('value' => '1'),
+      ),
+    ),
+  );
+
+  // Show conflict message if form_state has conflict info
+  if (!empty($form_state['storage']['conflict_info'])) {
+    $conflict = $form_state['storage']['conflict_info'];
+
+    if (!empty($conflict['type']) && $conflict['type'] === 'exact') {
+      // Exact conflict – fixed error message, no Yes/No
+      $form['conflict_message'] = array(
+        '#markup' => '<div class="messages error">'
+          . t('There is another reminder set for this exact date and time.<br>Title: @title<br>Reminder Date: @date<br>Reminder Time: @time', array(
+            '@title' => $conflict['title'],
+            '@date' => date('Y-m-d', $conflict['timestamp']),
+            '@time' => date('H:i', $conflict['timestamp']),
+          ))
+          . '</div>',
+      );
+    }
+    else {
+      // ±30 min conflict – show Yes/No
+      $form['conflict_message'] = array(
+        '#markup' => '<div class="messages warning">'
+          . t('You have another reminder close to the requested date and time.<br>Title: @title<br>Reminder Date: @date<br>Reminder Time: @time<br>Would you like to continue?', array(
+            '@title' => $conflict['title'],
+            '@date' => date('Y-m-d', $conflict['timestamp']),
+            '@time' => date('H:i', $conflict['timestamp']),
+          ))
+          . '</div>',
+      );
+
+      $form['confirm_conflict'] = array(
+        '#type' => 'radios',
+        '#options' => array(
+          'yes' => t('Yes'),
+          'no' => t('No'),
+        ),
+        '#required' => TRUE,
+      );
+    }
+  }
 
   $form['node_id'] = array(
     '#type' => 'value',
@@ -158,17 +225,87 @@ function etl_deferred_item_reflection_form($form, &$form_state, $node) {
   return $form;
 }
 
-/**
- * Form submit handler.
+/* =========================================================
+ * VALIDATION
+ * =========================================================
+ */
+function etl_deferred_item_reflection_form_validate($form, &$form_state) {
+
+  if ($form_state['values']['confidence'] != 1) {
+    return;
+  }
+
+  $new_timestamp = strtotime($form_state['values']['new_reminder_date']);
+  if ($new_timestamp <= REQUEST_TIME) {
+    form_set_error('new_reminder_date', t('Reminder date must be in the future.'));
+    return;
+  }
+
+  global $user;
+
+  // Exact datetime conflict
+  $query = new EntityFieldQuery();
+  $exact_result = $query
+    ->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'deferred_item')
+    ->propertyCondition('uid', $user->uid)
+    ->fieldCondition('field_reminder_date', 'value', date('Y-m-d H:i:s', $new_timestamp), '=')
+    ->fieldCondition('field_learning_status', 'value', 'Dropped', '<>') // Exclude dropped items
+    ->execute();
+
+  if (!empty($exact_result['node'])) {
+    form_set_error('new_reminder_date', t('There is another reminder set for this exact date and time, please select a different date and time.'));
+    return;
+  }
+
+  // ±30 min conflict
+  $start = $new_timestamp - (30 * 60);
+  $end   = $new_timestamp + (30 * 60);
+
+  $query2 = new EntityFieldQuery();
+  $result2 = $query2
+    ->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'deferred_item')
+    ->propertyCondition('uid', $user->uid)
+    ->fieldCondition('field_reminder_date', 'value', date('Y-m-d H:i:s', $start), '>=')
+    ->fieldCondition('field_reminder_date', 'value', date('Y-m-d H:i:s', $end), '<=')
+    ->fieldCondition('field_learning_status', 'value', 'Dropped', '<>') // Exclude dropped items
+    ->execute();
+
+  if (!empty($result2['node'])) {
+    $nid = key($result2['node']);
+    $conflict_node = node_load($nid);
+
+    if (empty($form_state['storage']['conflict_info'])) {
+      $form_state['storage']['conflict_info'] = array(
+        'title' => $conflict_node->title,
+        'timestamp' => strtotime($conflict_node->field_reminder_date[LANGUAGE_NONE][0]['value']),
+        'type' => 'near',
+      );
+      $form_state['rebuild'] = TRUE;
+      return;
+    }
+
+    // User chose No
+    if (!empty($form_state['values']['confirm_conflict']) && $form_state['values']['confirm_conflict'] == 'no') {
+      form_set_error('new_reminder_date', t('Please choose a different date and time.'));
+      return;
+    }
+  }
+}
+
+/* =========================================================
+ * SUBMIT
+ * =========================================================
  */
 function etl_deferred_item_reflection_form_submit($form, &$form_state) {
-  $node_id = $form_state['values']['node_id'];
-  $node = node_load($node_id);
+
+  $node = node_load($form_state['values']['node_id']);
   global $user;
 
   $reflection = entity_create('reflection_log', array(
     'uid' => $user->uid,
-    'deferred_item_id' => $node_id,
+    'deferred_item_id' => $node->nid,
     'created' => REQUEST_TIME,
     'changed' => REQUEST_TIME,
     'reflection_note' => $form_state['values']['reflection_note'],
@@ -176,6 +313,107 @@ function etl_deferred_item_reflection_form_submit($form, &$form_state) {
   ));
   $reflection->save();
 
-  drupal_set_message(t('Reflection saved!'));
+  if ($form_state['values']['confidence'] == 1) {
+
+    $new_time = strtotime($form_state['values']['new_reminder_date']);
+    $lang = LANGUAGE_NONE;
+
+    $node->field_reminder_date[$lang][0]['value'] = date('Y-m-d H:i:s', $new_time);
+    node_save($node);
+
+    $queue = DrupalQueue::get('etl_reminder_queue');
+    $queue->createItem(array(
+      'nid' => $node->nid,
+      'uid' => $user->uid,
+      'reminder_time' => $new_time,
+    ));
+
+      // Log the queue addition
+  watchdog('etl_deferred_item', 
+    'New reminder queued for node @nid, user @uid, scheduled at @time', 
+    array(
+      '@nid' => $node->nid, 
+      '@uid' => $user->uid, 
+      '@time' => date('Y-m-d H:i:s', $new_time)
+    ), 
+    WATCHDOG_NOTICE
+  );
+  }
+
+  drupal_set_message(t('Reflection saved successfully.'));
   drupal_goto("node/{$node->nid}");
+}
+
+/* =========================================================
+ * CRON (+5 min offset)
+ * =========================================================
+ */
+function etl_deferred_item_cron() {
+
+  $queue = DrupalQueue::get('etl_reminder_queue');
+  $threshold = REQUEST_TIME + (5 * 60);
+
+  while ($item = $queue->claimItem()) {
+
+    if ($item->data['reminder_time'] <= $threshold) {
+
+      $node = node_load($item->data['nid']);
+      $account = user_load($item->data['uid']);
+
+      if ($node && $account) {
+        etl_deferred_item_send_reminder_email($node, $account);
+      }
+
+      $queue->deleteItem($item);
+    }
+    else {
+      $queue->releaseItem($item);
+      break;
+    }
+  }
+}
+
+/* =========================================================
+ * MAIL
+ * =========================================================
+ */
+function etl_deferred_item_send_reminder_email($node, $account) {
+
+  $lang = LANGUAGE_NONE;
+  $what = '';
+
+  if (!empty($node->field_what_did_you_not_understan[$lang][0]['value'])) {
+    $what = $node->field_what_did_you_not_understan[$lang][0]['value'];
+  }
+
+  $subject = 'Reminder: Review your deferred item "' . $node->title . '"';
+
+  $body =
+"You added reflection log to understand this concept later.
+
+Title: {$node->title}
+What you did not understand: {$what}
+Link: " . url('node/' . $node->nid, array('absolute' => TRUE)) . "
+
+Review it now and update its status (Pending, Learned, or Dropped).
+
+Thanks!";
+
+  $params['subject'] = $subject;
+  $params['body'] = $body;
+
+  drupal_mail(
+    'etl_deferred_item',
+    'reminder_mail',
+    $account->mail,
+    language_default(),
+    $params
+  );
+}
+
+function etl_deferred_item_mail($key, &$message, $params) {
+  if ($key == 'reminder_mail') {
+    $message['subject'] = $params['subject'];
+    $message['body'][] = $params['body'];
+  }
 }
