@@ -89,9 +89,9 @@ function etl_custom_forms_add_form($form, &$form_state) {
     '#description' => t('Upload one related image or PDF. File size should should be less than 5MB'),
   );
 
-  // =====================================================
+
   // Conflict message for ±30 min
-  // =====================================================
+  
   if (!empty($form_state['storage']['conflict_info'])) {
     $conflict = $form_state['storage']['conflict_info'];
 
@@ -220,9 +220,9 @@ function etl_custom_forms_add_form_validate($form, &$form_state) {
       t('Please provide more details: longer description, link, or personal note.'));
   }
 
-  // =====================================================
+
   // Conflict checks (exact datetime + ±30 min)
-  // =====================================================
+
   if ($reminder_timestamp) {
     global $user;
 

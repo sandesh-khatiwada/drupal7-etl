@@ -46,8 +46,6 @@ class ETLDeferredItemWebTest extends DrupalWebTestCase {
       ),
     ));
 
-    // Optional: help dynamic node perms (not always needed once hook_permission is added)
-    node_types_rebuild();
   }
 
   protected function createTestUserAndNode() {
@@ -144,7 +142,7 @@ class ETLDeferredItemWebTest extends DrupalWebTestCase {
     );
 
     $this->assertResponse(200);
-    $this->assertText('Reflection saved!');
+    $this->assertText('Reflection saved successfully.');
 
     $results = entity_load('reflection_log', FALSE, array(
       'deferred_item_id' => $node->nid,
