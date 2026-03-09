@@ -65,9 +65,15 @@ Users may optionally add a **Reflection Log** describing their learning experien
 
 A custom entity called **Reflection Log** stores:
 
-- Difficulty level
+- Difficulty level (Confidence Rating: Again / Hard / Good / Easy / Very Easy)
 - Learning reflection notes
 - Whether another reminder is required
+
+If the confidence rating is set to **Again (1)**, the user provides a new reminder date and time. The system then:
+
+1. Updates the Deferred Item's reminder date
+2. Queues a new reminder job via **Drupal Queue** (`etl_reminder_queue`)
+3. Sends the reminder email via **cron** when the scheduled time is reached
 
 ### 5. Progress Tracking
 
@@ -98,7 +104,7 @@ A calendar interface helps users track their learning schedule by displaying:
 
 | Module | Role |
 |---|---|
-| **Views** | Displays Deferred Items in structured table with search, sorting, and filtering |
+| **Views** | Displays Deferred Items in structured lists with search, sorting, and filtering |
 | **Token** | Provides dynamic placeholder tokens for automated email templates |
 | **SMTP** | Configures authenticated mail delivery for reliable reminder emails |
 | **Rules** | Automates workflows such as scheduling and sending reminder emails |
@@ -123,7 +129,7 @@ Builds, validates, and processes the custom submission form for creating Deferre
 - Server-side validation
 - Submission handling
 
-> Interacts with Drupal core nodes.
+> Interacts with Drupal core nodes; does not create custom entities.
 
 ---
 
@@ -136,7 +142,7 @@ Displays user reminders and Deferred Items in an interactive calendar interface 
 - Reminder scheduling display
 - Status-based event highlighting
 
-> Reads Drupal core content.
+> Reads Drupal core content; no entity creation.
 
 ---
 
@@ -150,7 +156,7 @@ Visualizes user learning progress through charts and analytics dashboards using 
 - Dropped items
 - Learning trends over time
 
-> Reads Drupal core data and custom entity data.
+> Reads Drupal core data and custom entity data; does not create entities.
 
 ---
 
@@ -198,6 +204,8 @@ Implements a basic CRUD workflow by:
 | **DatabaseAPI** | Database interactions |
 | **EntityAPI** | Custom entity management |
 | **Drupal Mail API** | Email notifications |
+| **Drupal Queue API** | Queues reminder jobs when a new reminder date is set via Reflection Log |
+| **Drupal Cron** | Processes the reminder queue and dispatches emails at the scheduled time |
 | **Chart.js** | Analytics visualization |
 | **FullCalendar** | Scheduling interface |
 
