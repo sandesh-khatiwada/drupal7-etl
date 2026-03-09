@@ -129,7 +129,7 @@ Builds, validates, and processes the custom submission form for creating Deferre
 - Server-side validation
 - Submission handling
 
-> Interacts with Drupal core nodes; does not create custom entities.
+> Interacts with Drupal core nodes.
 
 ---
 
@@ -142,7 +142,7 @@ Displays user reminders and Deferred Items in an interactive calendar interface 
 - Reminder scheduling display
 - Status-based event highlighting
 
-> Reads Drupal core content; no entity creation.
+> Reads Drupal core content.
 
 ---
 
@@ -156,7 +156,7 @@ Visualizes user learning progress through charts and analytics dashboards using 
 - Dropped items
 - Learning trends over time
 
-> Reads Drupal core data and custom entity data; does not create entities.
+> Reads Drupal core data and custom entity data.
 
 ---
 
@@ -192,7 +192,7 @@ Implements a basic CRUD workflow by:
 - Populating it with sample data
 - Providing interfaces to Create, Read, Update, and Delete records
 
-> This module is intentionally retained to showcase foundational Drupal development concepts. Uses custom tables but not Drupal entities.
+> This module is intentionally retained to showcase foundational Drupal development concepts. Uses custom tables.
 
 ---
 
