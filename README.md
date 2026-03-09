@@ -1,12 +1,25 @@
 # Explain This Later
 
-**Explain This Later** is a Drupal 7–based personal productivity web application that helps users revisit concepts they don’t understand yet.
+> A Drupal 7–based personal productivity web application that helps users revisit concepts they don't understand yet.
 
-It allows users to save confusing links or ideas, set a future reminder, receive automated email notifications, reflect on their learning, and track their progress visually.
+Users can save confusing links or ideas, set a future reminder, receive automated email notifications, reflect on their learning, and track their progress visually.
 
 ---
 
-## 🚀 Project Overview
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [Core Workflow](#core-workflow)
+- [Architecture](#architecture)
+- [Contributed Modules](#contributed-modules)
+- [Custom Modules](#custom-modules)
+- [APIs Used](#apis-used)
+- [Key Features](#key-features)
+- [Purpose](#purpose)
+
+---
+
+## Project Overview
 
 Many learners encounter concepts they do not fully understand but intend to revisit later. This application provides a structured system to:
 
@@ -18,122 +31,201 @@ Many learners encounter concepts they do not fully understand but intend to revi
 
 ---
 
-## 🔄 Core Workflow
+## Core Workflow
 
-1. **Create Deferred Item**
-   - User adds a custom content type: **Deferred Item**
-   - Fields include:
-     - Title
-     - Description
-     - What confused them
-     - Reference URL (if any)
-     - Documents (if any)
-     - Reminder date & time
-   - Initial state: `Pending`
+### 1. Create Deferred Item
 
-2. **Reminder Notification**
-   - System sends an automated email on the scheduled reminder date/time.
+Users create a custom content type called **Deferred Item** with the following fields:
 
-3. **Concept Review**
-   - User revisits the concept.
-   - Marks it as:
-     - `Learned`
-     - `Dropped`
-   - Optionally adds a **Reflection Log** (custom entity).
+| Field | Details |
+|---|---|
+| Title | Required |
+| Description | Required |
+| What confused them | Required |
+| Reference URL | Optional |
+| Supporting documents | Optional |
+| Reminder date & time | Required |
 
-4. **Reflection Logging**
-   - Custom entity: `Reflection Log`
-   - Stores:
-     - Difficulty level
-     - Learning reflection
-     - Whether another reminder is needed
+**Initial Status:** `Pending`
 
-5. **Progress Tracking**
-   - Visualized using **Chart.js**
-   - Displays learning statistics and trends.
+### 2. Reminder Notification
 
-6. **Calendar View**
-   - Implemented using **FullCalendar**
-   - Shows:
-     - Upcoming items
-     - Pending items
-     - Missed reminders
-     - Completed items
+The system automatically sends an email reminder at the scheduled date and time.
 
----
+### 3. Concept Review
 
-## 🧩 Architecture
+After revisiting the concept, the user marks the item as:
 
-### Drupal Version
-- Drupal 7 (Core + Contributed + Custom Modules)
+- `Learned`
+- `Dropped`
 
----
+Users may optionally add a **Reflection Log** describing their learning experience.
 
-## 📦 Contributed Modules Used
+### 4. Reflection Logging
 
-- Views
-- Token
-- SMTP
-- Rules
-- Pathauto
-- Link
-- Entity
-- Better Exposed Filters
+A custom entity called **Reflection Log** stores:
+
+- Difficulty level
+- Learning reflection notes
+- Whether another reminder is required
+
+### 5. Progress Tracking
+
+Learning progress is visualized using interactive charts displaying:
+
+- Completion statistics
+- Learning trends
+- Status distribution of items
+
+### 6. Calendar View
+
+A calendar interface helps users track their learning schedule by displaying:
+
+- Upcoming reminders
+- Pending reviews
+- Missed reminders
+- Completed items
 
 ---
 
-## 🛠 Custom Modules
+## Architecture
 
-### 1. Custom Form Module
-- Form creation using Drupal FormAPI
-- Client-side and server-side validation
+**Drupal Version:** Drupal 7 (Core + Contributed + Custom Modules)
+
+---
+
+## Contributed Modules
+
+| Module | Role |
+|---|---|
+| **Views** | Displays Deferred Items in structured table with search, sorting, and filtering |
+| **Token** | Provides dynamic placeholder tokens for automated email templates |
+| **SMTP** | Configures authenticated mail delivery for reliable reminder emails |
+| **Rules** | Automates workflows such as scheduling and sending reminder emails |
+| **Pathauto** | Automatically generates clean URL patterns for content |
+| **Link** | Provides a field type for storing and validating URLs on Deferred Items |
+| **Entity API** | Enables structured handling of custom entity types like Reflection Logs |
+| **Better Exposed Filters** | Enhances Views filters with auto-submit and improved UI widgets |
+| **Devel** | Developer utility for debugging, query logging, and test data generation |
+| **Admin Menu** | Provides fast, structured administrative navigation |
+
+---
+
+## Custom Modules
+
+### `etl_custom_forms`
+
+Builds, validates, and processes the custom submission form for creating Deferred Items using Drupal FormAPI.
+
+**Responsibilities:**
+- Form construction
+- Client-side validation
+- Server-side validation
 - Submission handling
 
-### 2. Calendar Module
-- Integrates FullCalendar
-- Displays deferred items by status and reminder date
-
-### 3. Progress Visualization Module
-- Integrates Chart.js
-- Generates learning analytics and progress charts
-
-### 4. Lifecycle & Reflection Module
-- Manages state transitions:
-  - Pending → Learned / Dropped
-- Defines custom entity type: `Reflection Log`
-- Handles reminder logic and item lifecycle
+> Interacts with Drupal core nodes.
 
 ---
 
-## 🔧 APIs Used
+### `etl_calendar`
 
-- FormAPI
-- DatabaseAPI
-- EntityAPI
-- JavaScript API (for Chart.js & FullCalendar integration)
+Displays user reminders and Deferred Items in an interactive calendar interface (day/week/month views) using **FullCalendar**.
+
+**Responsibilities:**
+- Calendar visualization
+- Reminder scheduling display
+- Status-based event highlighting
+
+> Reads Drupal core content.
 
 ---
 
-## 📊 Key Features
+### `etl_progress`
+
+Visualizes user learning progress through charts and analytics dashboards using **Chart.js**.
+
+**Displays:**
+- Completed items
+- Pending reviews
+- Dropped items
+- Learning trends over time
+
+> Reads Drupal core data and custom entity data.
+
+---
+
+### `etl_deferred_item`
+
+Core domain module managing the full lifecycle of Deferred Items.
+
+**Responsibilities:**
+- Status transitions (`Pending` → `Learned` / `Dropped`)
+- Reminder scheduling logic
+- Reflection workflow handling
+- Business rules enforcement
+
+**Custom Entity Defined — Reflection Log:**
+- Stores reflection notes
+- Tracks difficulty level
+- Manages follow-up reminders
+
+**Testing:**
+- Drupal 7 web tests
+- Unit test cases for lifecycle validation
+
+> Creates and manages a custom entity and extends Drupal core node workflows.
+
+---
+
+### `demo` *(Not part of the main project)*
+
+A demonstration module created for learning purposes to understand Drupal custom module development.
+
+Implements a basic CRUD workflow by:
+- Creating a custom database table
+- Populating it with sample data
+- Providing interfaces to Create, Read, Update, and Delete records
+
+> This module is intentionally retained to showcase foundational Drupal development concepts. Uses custom tables but not Drupal entities.
+
+---
+
+## APIs Used
+
+| API | Purpose |
+|---|---|
+| **FormAPI** | Form building and validation |
+| **DatabaseAPI** | Database interactions |
+| **EntityAPI** | Custom entity management |
+| **Drupal Mail API** | Email notifications |
+| **Chart.js** | Analytics visualization |
+| **FullCalendar** | Scheduling interface |
+
+---
+
+## Key Features
 
 - Structured deferred learning system
 - Automated email reminders
 - Custom entity implementation
 - Lifecycle state management
-- Data visualization
-- Calendar-based task tracking
-- Clean modular architecture
+- Reflection logging system
+- Data visualization dashboards
+- Calendar-based learning scheduler
+- Advanced filtering and search
+- Modular and scalable architecture
 
 ---
 
-## 🎯 Purpose
+## Purpose
 
 This project demonstrates:
 
 - Advanced Drupal 7 development
-- Custom entity creation
-- Workflow management using Rules
-- Integration of third-party JS libraries
-- Modular system design
-- Full-stack feature implementation inside Drupal
-
+- Custom entity architecture
+- Workflow automation using Rules
+- Integration of third-party JavaScript libraries
+- Modular system design principles
+- Full-stack feature implementation within Drupal
+- Automated scheduling and notification systems
+- Test-driven feature validation
