@@ -2,7 +2,7 @@
 
 > A Drupal 7–based personal productivity web application that helps users revisit concepts they don't understand yet.
 
-Users can save confusing links or ideas, set a future reminder, receive automated email notifications, reflect on their learning, and track their progress visually.
+Users can save confusing links or ideas, set a future reminder, receive automated email notifications, reflect on their learning, track their progress visually, and interact with an assistant chatbot for quick access to reminders and statistics.
 
 ---
 
@@ -28,6 +28,7 @@ Many learners encounter concepts they do not fully understand but intend to revi
 - Receive automated email notifications
 - Reflect on the learning experience
 - Track progress visually over time
+- Interact with a rule-based chatbot assistant for quick information retrieval
 
 ---
 
@@ -50,7 +51,7 @@ Users create a custom content type called **Deferred Item** with the following f
 
 ### 2. Reminder Notification
 
-The system automatically sends an email reminder at the scheduled date and time.
+The system automatically sends an email reminder at the scheduled date and time using the Rules Scheduler module, which schedules and executes delayed actions through Drupal cron.
 
 ### 3. Concept Review
 
@@ -92,6 +93,17 @@ A calendar interface helps users track their learning schedule by displaying:
 - Missed reminders
 - Completed items
 
+### 7. Chatbot Assistant
+
+A floating chatbot assistant is available across the platform for logged-in users. It allows users to quickly:
+
+- View today's reminders
+- Check reminders on a specific date
+- View upcoming reminders
+- See learning progress statistics
+
+The chatbot provides an intuitive conversational interface for faster access to important learning information.
+
 ---
 
 ## Architecture
@@ -104,7 +116,7 @@ A calendar interface helps users track their learning schedule by displaying:
 
 | Module | Role |
 |---|---|
-| **Views** | Displays Deferred Items in structured lists with search, sorting, and filtering |
+| **Views** | Displays Deferred Items in structured table with search, sorting, and filtering |
 | **Token** | Provides dynamic placeholder tokens for automated email templates |
 | **SMTP** | Configures authenticated mail delivery for reliable reminder emails |
 | **Rules** | Automates workflows such as scheduling and sending reminder emails |
@@ -183,6 +195,43 @@ Core domain module managing the full lifecycle of Deferred Items.
 
 ---
 
+### `etl_chatbot`
+
+Provides a floating, rule-based chatbot assistant that helps users quickly retrieve reminder information and learning statistics.
+
+**Key Features:**
+
+- Floating chat icon visible on all pages for logged-in users
+- AJAX-powered conversational interface
+- Rule-based keyword detection
+- Interactive reminder cards with quick navigation
+- Smart result limiting for performance optimization
+
+**User Capabilities:**
+
+Users can ask:
+
+- “Show my reminders today”
+- “Show reminders on YYYY-MM-DD”
+- “Show upcoming reminders”
+- “Show my learning progress”
+
+**Technical Responsibilities:**
+
+- Injects chatbot UI using `hook_init()` and `hook_page_alter()`
+- Processes user messages via AJAX callbacks
+- Uses Drupal Database API for reminder retrieval
+- Formats results as interactive UI cards
+- Limits query results to detect large datasets efficiently
+
+**Performance Optimization:**
+
+Reminder queries fetch the maximum **6 items** but display **5** to detect if more records exist without executing expensive full counts.
+
+> Enhances usability without modifying core data structures.
+
+---
+
 ### `demo` *(Not part of the main project)*
 
 A demonstration module created for learning purposes to understand Drupal custom module development.
@@ -192,7 +241,7 @@ Implements a basic CRUD workflow by:
 - Populating it with sample data
 - Providing interfaces to Create, Read, Update, and Delete records
 
-> This module is intentionally retained to showcase foundational Drupal development concepts. Uses custom tables.
+> This module is intentionally retained to showcase foundational Drupal development concepts. Uses custom tables for CRUD operations.
 
 ---
 
@@ -206,6 +255,7 @@ Implements a basic CRUD workflow by:
 | **Drupal Mail API** | Email notifications |
 | **Drupal Queue API** | Queues reminder jobs when a new reminder date is set via Reflection Log |
 | **Drupal Cron** | Processes the reminder queue and dispatches emails at the scheduled time |
+| **Drupal AJAX API** | Enables asynchronous chatbot interactions |
 | **Chart.js** | Analytics visualization |
 | **FullCalendar** | Scheduling interface |
 
@@ -220,8 +270,10 @@ Implements a basic CRUD workflow by:
 - Reflection logging system
 - Data visualization dashboards
 - Calendar-based learning scheduler
+- Rule-based chatbot assistant
 - Advanced filtering and search
 - Modular and scalable architecture
+- Performance-optimized reminder queries
 
 ---
 
@@ -236,4 +288,5 @@ This project demonstrates:
 - Modular system design principles
 - Full-stack feature implementation within Drupal
 - Automated scheduling and notification systems
+- Conversational UI integration inside Drupal
 - Test-driven feature validation

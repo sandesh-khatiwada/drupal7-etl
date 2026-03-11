@@ -1,0 +1,191 @@
+/* Floating Icon */
+#etl-chatbot-icon{
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #2c97de;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  cursor: pointer;
+  z-index: 99999;
+}
+
+/* Chat Window */
+#etl-chatbot-window {
+  display: none; /*hide container by default */
+  position: fixed;
+  bottom: 25px;      /* small space from bottom */
+  right: 20px;
+  width: 340px;
+  height: min(480px, 70vh);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 5px 25px rgba(0,0,0,.2);
+  z-index: 99998;
+  overflow: hidden;
+  font-size: 14px;
+
+  /* Flex layout */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+#etl-chatbot-header{
+  background:#2c97de;
+  color:#fff;
+  padding:12px;
+  font-weight:bold;
+  flex:0 0 auto;
+}
+#etl-chatbot-close{
+  float:right;
+  cursor:pointer;
+}
+
+/* Messages */
+#etl-chatbot-messages{
+  padding:10px;
+  background:#f7f9fb;
+  overflow-y:auto;
+  flex:1 1 auto;
+  min-height:120px;
+}
+
+/* Sample Questions - Flex row, side by side */
+#etl-chatbot-samples {
+  padding: 8px;
+  border-top: 1px solid #eee;
+  background: #fff;
+
+  display: flex;
+  flex-wrap: wrap;       /* wrap to next line */
+  gap: 6px;              /* space between items */
+  justify-content: flex-start;
+
+  max-height: none;
+  overflow: visible;     /* no scroll */
+}
+
+.etl-sample {
+  background: #eef3f7;
+  padding: 6px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;   /* prevent text from breaking */
+  flex: 0 0 auto;        /* do not stretch */
+}
+
+.etl-sample:hover {
+  background: #d6e7f5;
+}
+
+/* Input Area */
+#etl-chatbot-input-area{
+  display:flex;
+  border-top:1px solid #ddd;
+  background:#fff;
+  flex:0 0 44px;
+}
+
+#etl-chatbot-input{
+  flex:1;
+  padding:8px;
+  border:none;
+  outline:none;
+}
+
+#etl-chatbot-send{
+  width:70px;
+  border:none;
+  background:#2c97de;
+  color:#fff;
+  cursor:pointer;
+}
+
+/* Chat Bubbles */
+/* User message (question) */
+.user-msg {
+  text-align: right;
+  margin: 18px 0 6px 0; 
+  color: #333;
+}
+
+/* Bot message (response) */
+.bot-msg {
+  text-align: left;
+  margin: 6px 0 18px 0; 
+  color: #000;
+}
+
+/* Quick action button */
+.etl-btn-view {
+  margin-left: 8px;
+  padding: 3px 6px;
+  font-size: 12px;
+  background:#2c97de;
+  color:#fff;
+  border:none;
+  border-radius:3px;
+  cursor:pointer;
+}
+
+/* Typing animation */
+.bot-msg.typing::after {
+  content: '...';
+  display: inline-block;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0; }
+}
+
+/* Cards container */
+.etl-cards {
+  display: flex;
+  flex-direction: column; /* stack cards vertically */
+  gap: 6px;               /* space between cards */
+  margin-top: 6px;
+}
+
+/* Individual card */
+.etl-card {
+  background: #eef3f7;
+  border-radius: 8px;
+  padding: 8px 10px;
+  width: 100%;             /* full width to ensure line break */
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 4px rgba(0,0,0,.1);
+  font-size: 13px;
+}
+
+/* Card title */
+.etl-card-title {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+/* Card time */
+.etl-card-time {
+  font-size: 12px;
+  color: #555;
+  margin-bottom: 4px;
+}
+
+/* "and more" */
+.etl-more {
+  font-style: italic;
+  margin-top: 4px;
+  color: #777;
+  font-size: 12px;
+}

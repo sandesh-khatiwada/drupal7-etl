@@ -1,0 +1,225 @@
+<?php
+
+/**
+ * @file
+ * Floating chatbot module for Explain This Later project.
+ */
+
+/* 
+ * INIT — Load chatbot on all pages for logged-in users
+*/
+function etl_chatbot_init() {
+  global $user;
+
+  if ($user->uid > 0) {
+    $module_path = drupal_get_path('module', 'etl_chatbot');
+
+    drupal_add_js($module_path . '/js/etl_chatbot.js');
+    drupal_add_css($module_path . '/css/etl_chatbot.css');
+    drupal_add_library('system', 'drupal.ajax');
+
+    drupal_add_html_head(array(
+      '#tag' => 'meta',
+      '#attributes' => array('name' => 'viewport', 'content' => 'width=device-width, initial-scale=1')
+    ), 'etl_chatbot_viewport');
+
+    drupal_add_js(array('etl_chatbot' => array(
+      'ajax_url' => url('etl-chatbot/ajax', array('absolute' => TRUE)),
+    )), 'setting');
+  }
+}
+
+/* 
+ * MENU — AJAX callback
+ */
+function etl_chatbot_menu() {
+  $items = array();
+
+  $items['etl-chatbot/ajax'] = array(
+    'page callback' => 'etl_chatbot_ajax_callback',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/*
+ * PAGE FOOTER — Inject Chatbot Markup
+ */
+function etl_chatbot_page_alter(&$page) {
+  global $user;
+  if ($user->uid == 0) return;
+
+  $page['page_bottom']['etl_chatbot'] = array(
+    '#markup' => etl_chatbot_markup(),
+  );
+}
+
+/*
+ * CHATBOT MARKUP
+ */
+function etl_chatbot_markup() {
+  ob_start(); ?>
+
+<div id="etl-chatbot-icon">💬</div>
+
+<div id="etl-chatbot-window" style="display:none;">
+  <div id="etl-chatbot-header">
+    Chatbot <span id="etl-chatbot-close">✖</span>
+  </div>
+  <div id="etl-chatbot-messages"></div>
+  <div id="etl-chatbot-samples">
+    <div class="etl-sample">Show my reminders today</div>
+    <div class="etl-sample">Show reminders on <?php echo date('Y-m-d'); ?></div>
+    <div class="etl-sample">Show my learning progress</div>
+  </div>
+  <div id="etl-chatbot-input-area">
+    <input type="text" id="etl-chatbot-input" placeholder="Type your message...">
+    <button id="etl-chatbot-send">Send</button>
+  </div>
+</div>
+
+<?php
+  return ob_get_clean();
+}
+
+/* 
+ * AJAX CALLBACK
+ */
+function etl_chatbot_ajax_callback() {
+  global $user;
+
+  $query = strtolower(trim($_POST['query']));
+  $response = etl_chatbot_process_query($query, $user->uid);
+
+  drupal_json_output(array('response' => $response));
+  drupal_exit();
+}
+
+/* 
+ * CHATBOT LOGIC
+*/
+function etl_chatbot_process_query($query, $uid) {
+  if ($uid == 0) return 'Please login.';
+
+  $greetings = array('hi','hello','hey','greetings');
+  foreach($greetings as $g) {
+    if (strpos(strtolower($query), $g) !== FALSE) {
+      return 'Hello! How can I assist you with your reminders today?';
+    }
+  }
+
+  if (strpos($query, 'today') !== FALSE)
+    return etl_chatbot_get_reminders_by_date(date('Y-m-d'), $uid);
+
+  if (strpos($query, 'upcoming') !== FALSE || strpos($query, 'next') !== FALSE)
+    return etl_chatbot_get_upcoming_reminders($uid);
+
+  if (preg_match('/(\d{4}-\d{2}-\d{2})/', $query, $m))
+    return etl_chatbot_get_reminders_by_date($m[1], $uid);
+
+  if (strpos($query, 'progress') !== FALSE || strpos($query, 'stat') !== FALSE)
+    return etl_chatbot_get_progress_stats($uid);
+
+  return 'Sorry, I did not understand.';
+}
+
+/* 
+ * DATABASE QUERIES
+ */
+function etl_chatbot_get_upcoming_reminders($uid) {
+  $today = date('Y-m-d');
+
+  $q = db_select('node', 'n');
+  $q->join('field_data_field_reminder_date', 'rd', 'rd.entity_id=n.nid');
+  $q->join('field_data_field_learning_status', 'ls', 'ls.entity_id=n.nid');
+  $q->fields('n', array('nid','title'));
+  $q->addField('rd','field_reminder_date_value','date');
+  $q->condition('n.type','deferred_item');
+  $q->condition('n.uid',$uid);
+  $q->condition('ls.field_learning_status_value','Pending');
+  $q->condition('rd.field_reminder_date_value',$today,'>');
+  $q->range(0,6); // fetch 6 to know if more exist
+  $r = $q->execute()->fetchAll();
+
+  if(!$r) return 'No upcoming reminders.';
+
+  $out = '<b>Upcoming Reminders:</b><div class="etl-cards">';
+  $count = count($r);
+  $showCount = min(5, $count);
+
+  for($i=0;$i<$showCount;$i++){
+    $row = $r[$i];
+    $url = url('node/'.$row->nid, array('absolute'=>TRUE));
+    $time = format_date(strtotime($row->date),'custom','Y-m-d H:i');
+    $out .= '<div class="etl-card"><div class="etl-card-title">'.$row->title.'</div>
+             <div class="etl-card-time">'.$time.'</div>
+             <button class="etl-btn-view" data-url="'.$url.'">View</button></div>';
+  }
+
+  if($count > 5){
+    $out .= '<div class="etl-more">and more...</div>';
+  }
+
+  $out .= '</div>';
+  return $out;
+}
+
+function etl_chatbot_get_reminders_by_date($date,$uid){
+  $start=$date.' 00:00:00'; $end=$date.' 23:59:59';
+
+  $q=db_select('node','n');
+  $q->join('field_data_field_reminder_date','rd','rd.entity_id=n.nid');
+  $q->fields('n',array('nid','title'));
+  $q->addField('rd','field_reminder_date_value','date');
+  $q->condition('n.type','deferred_item');
+  $q->condition('n.uid',$uid);
+  $q->condition('rd.field_reminder_date_value',array($start,$end),'BETWEEN');
+  $q->range(0,6); // fetch 6 to detect "more"
+  $r=$q->execute()->fetchAll();
+
+  if(!$r) return 'No reminders found.';
+
+  $out='<b>Reminders for '.$date.':</b><div class="etl-cards">';
+  $count = count($r);
+  $showCount = min(5, $count);
+
+  for($i=0;$i<$showCount;$i++){
+    $row = $r[$i];
+    $url = url('node/'.$row->nid, array('absolute'=>TRUE));
+    $time = format_date(strtotime($row->date),'custom','H:i');
+    $out .= '<div class="etl-card"><div class="etl-card-title">'.$row->title.'</div>
+             <div class="etl-card-time">'.$time.'</div>
+             <button class="etl-btn-view" data-url="'.$url.'">View</button></div>';
+  }
+
+  if($count > 5){
+    $out .= '<div class="etl-more">and more...</div>';
+  }
+
+  $out .= '</div>';
+  return $out;
+}
+
+function etl_chatbot_get_progress_stats($uid){
+  $base=db_select('node','n');
+  $base->join('field_data_field_learning_status','ls','ls.entity_id=n.nid');
+  $base->condition('n.type','deferred_item');
+  $base->condition('n.uid',$uid);
+
+  $l=(clone $base)->condition('ls.field_learning_status_value','Learned')->countQuery()->execute()->fetchField();
+  $p=(clone $base)->condition('ls.field_learning_status_value','Pending')->countQuery()->execute()->fetchField();
+  $d=(clone $base)->condition('ls.field_learning_status_value','Dropped')->countQuery()->execute()->fetchField();
+
+  $t=$l+$p+$d; $c=$t?round($l/$t*100):0;
+
+  return "<b>Progress:</b>
+  <div class='etl-cards'>
+    <div class='etl-card'><div>Total: $t</div></div>
+    <div class='etl-card'><div>Learned: $l</div></div>
+    <div class='etl-card'><div>Pending: $p</div></div>
+    <div class='etl-card'><div>Dropped: $d</div></div>
+    <div class='etl-card'><div>Completion: $c%</div></div>
+  </div>";
+}
