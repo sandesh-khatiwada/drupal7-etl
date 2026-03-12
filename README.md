@@ -109,7 +109,6 @@ The chatbot provides an intuitive conversational interface for faster access to 
 ## Architecture
 
 **Drupal Version:** Drupal 7 (Core + Contributed + Custom Modules)  
-**Access Control:** Implemented using Content Access module for per-user node restrictions
 
 ---
 
@@ -188,10 +187,6 @@ Core domain module managing the full lifecycle of Deferred Items.
 - Stores reflection notes
 - Tracks difficulty level
 - Manages follow-up reminders
-
-**Access Control:**
-- Ensures **users can only view, edit, delete their own nodes**
-- Admin users have full access
 
 **Testing:**
 - Drupal 7 web tests
