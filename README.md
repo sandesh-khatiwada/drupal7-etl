@@ -108,7 +108,8 @@ The chatbot provides an intuitive conversational interface for faster access to 
 
 ## Architecture
 
-**Drupal Version:** Drupal 7 (Core + Contributed + Custom Modules)
+**Drupal Version:** Drupal 7 (Core + Contributed + Custom Modules)  
+**Access Control:** Implemented using Content Access module for per-user node restrictions
 
 ---
 
@@ -126,6 +127,7 @@ The chatbot provides an intuitive conversational interface for faster access to 
 | **Better Exposed Filters** | Enhances Views filters with auto-submit and improved UI widgets |
 | **Devel** | Developer utility for debugging, query logging, and test data generation |
 | **Admin Menu** | Provides fast, structured administrative navigation |
+| **Content Access** | Restricts access to Deferred Items so users can view only their own content |
 
 ---
 
@@ -187,6 +189,10 @@ Core domain module managing the full lifecycle of Deferred Items.
 - Tracks difficulty level
 - Manages follow-up reminders
 
+**Access Control:**
+- Ensures **users can only view, edit, delete their own nodes**
+- Admin users have full access
+
 **Testing:**
 - Drupal 7 web tests
 - Unit test cases for lifecycle validation
@@ -239,7 +245,7 @@ A demonstration module created for learning purposes to understand Drupal custom
 Implements a basic CRUD workflow by:
 - Creating a custom database table
 - Populating it with sample data
-- Providing interfaces to Create, Read, Update, and Delete records
+- Providing interfaces to Create, Read, Update, Delete records
 
 > This module is intentionally retained to showcase foundational Drupal development concepts. Uses custom tables for CRUD operations.
 
@@ -274,6 +280,7 @@ Implements a basic CRUD workflow by:
 - Advanced filtering and search
 - Modular and scalable architecture
 - Performance-optimized reminder queries
+- **User-specific access control for Deferred Items**
 
 ---
 

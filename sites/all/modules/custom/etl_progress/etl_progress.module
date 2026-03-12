@@ -17,13 +17,29 @@ function etl_progress_menu() {
 }
 
 /**
+ * Implements hook_theme().
+ */
+function etl_progress_theme($existing, $type, $theme, $path) {
+  return array(
+    'etl_progress_page' => array(
+      'variables' => array(
+        'chart_data' => array(),
+      ),
+      'template' => 'etl-progress-page', 
+      'path' => drupal_get_path('module', 'etl_progress') . '/templates',
+    ),
+  );
+}
+
+/**
  * Page callback: /progress
  */
 function etl_progress_page() {
   $module_path = drupal_get_path('module', 'etl_progress');
   $chart_data = etl_progress_get_chart_data();
 
-  $page = array('#markup' => '');
+  // Attach JS and CSS
+  $page = array();
 
   // Chart.js
   $page['#attached']['js'][] = array(
@@ -55,33 +71,9 @@ function etl_progress_page() {
     'type' => 'file',
   );
 
-  // Markup
-  $page['#markup'] .= '<div class="progress-container">';
-  $page['#markup'] .= '<h1>' . t('My Learning Progress') . '</h1>';
-
-  $page['#markup'] .= '<div class="chart-row">';
-
-  $page['#markup'] .= '<div class="chart-card">';
-  $page['#markup'] .= '<h2>' . t('Status Breakdown') . '</h2>';
-  $page['#markup'] .= '<canvas id="statusPieChart"></canvas>';
-  $page['#markup'] .= '</div>';
-
-  $page['#markup'] .= '<div class="chart-card">';
-  $page['#markup'] .= '<h2>' . t('Items Learned Over Time') . '</h2>';
-  $page['#markup'] .= '<canvas id="timeLineChart"></canvas>';
-  $page['#markup'] .= '</div>';
-
-  $page['#markup'] .= '</div>';
-
-  $page['#markup'] .= '<div class="progress-summary">';
-  $page['#markup'] .= '<h2>' . t('Overall Completion') . '</h2>';
-  $page['#markup'] .= '<div class="progress-bar-outer">';
-  $page['#markup'] .= '<div class="progress-bar-inner" style="width:' . $chart_data['completion'] . '%"></div>';
-  $page['#markup'] .= '<span>' . $chart_data['completion'] . '%</span>';
-  $page['#markup'] .= '</div>';
-  $page['#markup'] .= '</div>';
-
-  $page['#markup'] .= '</div>';
+  // Render template
+  $page['#theme'] = 'etl_progress_page';
+  $page['#chart_data'] = $chart_data;
 
   return $page;
 }

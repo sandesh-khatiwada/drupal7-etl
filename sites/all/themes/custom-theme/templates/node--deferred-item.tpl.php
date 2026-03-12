@@ -39,10 +39,7 @@
       <!-- Left Column -->
       <div class="di-main">
         <div class="di-section">
-          <div class="di-section-title">
-            <span class="di-icon">🧠</span>
-            What Did You Not Understand?
-          </div>
+        
           <div class="di-section-content">
             <?php print render($content['field_what_did_you_not_understan']); ?>
           </div>
@@ -50,10 +47,6 @@
 
         <?php if (!empty($content['field_personal_note'])): ?>
           <div class="di-section">
-            <div class="di-section-title">
-              <span class="di-icon">📝</span>
-              Personal Note
-            </div>
             <div class="di-section-content">
               <?php print render($content['field_personal_note']); ?>
             </div>
@@ -66,18 +59,13 @@
 
         <?php if (!empty($content['field_reference_link'])): ?>
           <div class="di-side-box">
-            <div class="di-side-title">
-              🔗 Reference
-            </div>
+      
             <?php print render($content['field_reference_link']); ?>
           </div>
         <?php endif; ?>
 
         <?php if (!empty($content['field_documents'])): ?>
           <div class="di-side-box">
-            <div class="di-side-title">
-              📂 Documents
-            </div>
             <?php print render($content['field_documents']); ?>
           </div>
         <?php endif; ?>

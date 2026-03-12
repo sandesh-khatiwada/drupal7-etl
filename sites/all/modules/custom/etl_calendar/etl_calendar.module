@@ -7,7 +7,7 @@ function etl_calendar_menu() {
   $items = array();
 
   $items['calendar'] = array(
-    'title' => 'My Learning Calendar',
+    'title' => t('My Learning Calendar'),
     'page callback' => 'etl_calendar_page',
     'access callback' => 'user_is_logged_in',
     'type' => MENU_CALLBACK,
@@ -17,67 +17,62 @@ function etl_calendar_menu() {
 }
 
 /**
+ * Implements hook_theme().
+ */
+function etl_calendar_theme() {
+
+  return array(
+    'etl_calendar_page' => array(
+      'template' => 'etl-calendar-page',
+      'path' => drupal_get_path('module', 'etl_calendar') . '/templates',
+      'variables' => array(),
+    ),
+  );
+
+} 
+
+/**
  * Page callback
  */
 function etl_calendar_page() {
+
   global $user;
   $uid = $user->uid;
 
   $module_path = drupal_get_path('module', 'etl_calendar');
+
   $events = etl_calendar_get_events($uid);
 
-  $page = array(
-'#markup' => '
-
-<div class="calendar-legend">
-  <div class="legend-item">
-    <span class="legend-color completed"></span>
-    Completed
-  </div>
-  <div class="legend-item">
-    <span class="legend-color missed"></span>
-    Missed
-  </div>
-  <div class="legend-item">
-    <span class="legend-color dropped"></span>
-    Dropped
-  </div>
-  <div class="legend-item">
-    <span class="legend-color upcoming"></span>
-    Upcoming Pending
-  </div>
-</div>
-
-<div id="calendar"></div>
-',
+  $build = array(
+    '#theme' => 'etl_calendar_page',
   );
 
   // CSS
-  $page['#attached']['css'][] = array(
+  $build['#attached']['css'][] = array(
     'data' => $module_path . '/css/fullcalendar.min.css',
     'type' => 'file',
   );
 
-  $page['#attached']['css'][] = array(
+  $build['#attached']['css'][] = array(
     'data' => $module_path . '/css/fullcalendar-custom.css',
     'type' => 'file',
   );
 
   // JS
-  $page['#attached']['js'][] = array(
+  $build['#attached']['js'][] = array(
     'data' => $module_path . '/js/moment.min.js',
     'type' => 'file',
     'scope' => 'footer',
   );
 
-  $page['#attached']['js'][] = array(
+  $build['#attached']['js'][] = array(
     'data' => $module_path . '/js/fullcalendar.min.js',
     'type' => 'file',
     'scope' => 'footer',
   );
 
-  // Pass events
-  $page['#attached']['js'][] = array(
+  // Pass events to JS
+  $build['#attached']['js'][] = array(
     'data' => array(
       'etl_calendar' => array(
         'events' => $events,
@@ -86,13 +81,13 @@ function etl_calendar_page() {
     'type' => 'setting',
   );
 
-  $page['#attached']['js'][] = array(
+  $build['#attached']['js'][] = array(
     'data' => $module_path . '/js/progress-calendar.js',
     'type' => 'file',
     'scope' => 'footer',
   );
 
-  return $page;
+  return $build;
 }
 
 /**
@@ -184,8 +179,8 @@ function etl_calendar_get_events($uid) {
 
     $events[] = array(
       'title' => $row->title,
-      'start' => $reminder_datetime,  // FULL datetime
-      'allDay' => FALSE,              // required
+      'start' => $reminder_datetime,
+      'allDay' => FALSE,
       'url' => url('node/' . $row->nid),
       'className' => $class_name,
       'backgroundColor' => $color,

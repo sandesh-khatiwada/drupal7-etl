@@ -164,6 +164,7 @@ function etl_deferred_item_reflection_form($form, &$form_state, $node) {
     if ($msg_type === 'warning') {
       $form['confirm_conflict'] = array(
         '#type' => 'radios',
+        '#title' => t('Would you like to continue?'),
         '#options' => array('yes' => t('Yes'), 'no' => t('No')),
         '#required' => TRUE,
       );
@@ -274,50 +275,128 @@ function etl_deferred_item_reflection_form_submit($form, &$form_state) {
   drupal_goto('node/' . $node->nid);
 }
 
-/*
- * Cron
+/**
+ * Implements hook_cron_queue_info().
  */
-function etl_deferred_item_cron() {
-  $queue = DrupalQueue::get('etl_reminder_queue');
-  $threshold = REQUEST_TIME + 300;
-  
-  while ($item = $queue->claimItem()) {
-    if ($item->data['reminder_time'] > $threshold) {
-      $queue->releaseItem($item);
-      break;
-    }
+function etl_deferred_item_cron_queue_info() {
 
-    if ($node = node_load($item->data['nid'])) {
-      if ($account = user_load($item->data['uid'])) {
-        etl_deferred_item_send_reminder_email($node, $account);
-      }
-    }
-    $queue->deleteItem($item);
-  }
+  $queues['etl_reminder_queue'] = array(
+    'worker callback' => 'etl_deferred_item_queue_worker',
+    'time' => 45,
+  );
+
+  return $queues;
 }
 
-/*
- * Mail
+
+/**
+ * Queue worker to process reminder emails.
+ */
+function etl_deferred_item_queue_worker($data) {
+
+  $threshold = REQUEST_TIME + 300; // 5 minutes ahead
+
+  // If reminder time has not arrived yet, requeue it
+  if ($data['reminder_time'] > $threshold) {
+
+    DrupalQueue::get('etl_reminder_queue')->createItem($data);
+
+    return;
+  }
+
+  $node = node_load($data['nid']);
+  $account = user_load($data['uid']);
+
+  if (!$node || !$account) {
+
+    watchdog(
+      'etl_deferred_item',
+      'Invalid queue item removed. Node or user missing.',
+      array(),
+      WATCHDOG_WARNING
+    );
+
+    return;
+  }
+
+  $mail_sent = etl_deferred_item_send_reminder_email($node, $account);
+
+  if ($mail_sent) {
+
+    watchdog(
+      'etl_deferred_item',
+      'Reminder email sent for node @nid',
+      array('@nid' => $node->nid),
+      WATCHDOG_NOTICE
+    );
+
+    return;
+  }
+
+  // Retry logic
+  $data['attempts'] = isset($data['attempts']) ? $data['attempts'] + 1 : 1;
+
+  if ($data['attempts'] >= 5) {
+
+    watchdog(
+      'etl_deferred_item',
+      'Reminder email failed after 5 attempts for node @nid',
+      array('@nid' => $node->nid),
+      WATCHDOG_ERROR
+    );
+
+    return;
+  }
+
+  watchdog(
+    'etl_deferred_item',
+    'Reminder email attempt @count failed for node @nid. Retrying.',
+    array(
+      '@count' => $data['attempts'],
+      '@nid' => $node->nid
+    ),
+    WATCHDOG_WARNING
+  );
+
+  DrupalQueue::get('etl_reminder_queue')->createItem($data);
+}
+
+/**
+ * Send reminder email and return TRUE if successful.
  */
 function etl_deferred_item_send_reminder_email($node, $account) {
   $lang = LANGUAGE_NONE;
-  $what = !empty($node->field_what_did_you_not_understan[$lang][0]['value'])
-    ? $node->field_what_did_you_not_understan[$lang][0]['value']
-    : '';
+  $what = !empty($node->field_what_did_you_not_understan[$lang][0]['value']) 
+          ? $node->field_what_did_you_not_understan[$lang][0]['value'] 
+          : '';
 
-  $params['subject'] = 'Reminder: Review "' . $node->title . '"';
-  $params['body'] =
-    "You added reflection log to understand this concept later.\n\n" .
-    "Title: {$node->title}\n" .
-    "What you didn’t understand: {$what}\n" .
-    "Link: " . url('node/' . $node->nid, array('absolute' => TRUE)) . "\n\n" .
-    "Review and update its status.";
+  $params = array(
+    'subject' => 'Reminder: Review "' . $node->title . '"',
+    'body' => "You added reflection log to understand this concept later.\n\n" .
+              "Title: {$node->title}\n" .
+              "What you didn’t understand: {$what}\n" .
+              "Link: " . url('node/' . $node->nid, array('absolute' => TRUE)) . "\n\n" .
+              "Review and update its status.",
+  );
 
-  drupal_mail('etl_deferred_item','reminder_mail',$account->mail,language_default(),$params);
+  $result = drupal_mail('etl_deferred_item', 'reminder_mail', $account->mail, language_default(), $params);
+
+  // Check result
+  if (!empty($result['result'])) {
+    watchdog('etl_deferred_item', 'Reminder mail successfully sent to @mail', array('@mail' => $account->mail), WATCHDOG_NOTICE);
+    return TRUE;
+  }
+  else {
+    watchdog('etl_deferred_item', 'Failed to send reminder mail to @mail', array('@mail' => $account->mail), WATCHDOG_ERROR);
+    return FALSE;
+  }
 }
 
+/**
+ * Implements hook_mail().
+ */
 function etl_deferred_item_mail($key, &$message, $params) {
-  if ($key == 'reminder_mail') {
+  if ($key === 'reminder_mail') {
     $message['subject'] = $params['subject'];
     $message['body'][] = $params['body'];
   }
