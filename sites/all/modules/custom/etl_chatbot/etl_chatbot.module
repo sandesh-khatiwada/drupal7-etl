@@ -1,11 +1,6 @@
 <?php
 
 /**
- * @file
- * Floating chatbot module for Explain This Later project.
- */
-
-/**
  * Implements hook_init().
  */
 function etl_chatbot_init() {
@@ -50,7 +45,7 @@ function etl_chatbot_menu() {
 
 /**
  * Implements hook_page_alter().
- * Inject chatbot markup at page bottom.
+ * Injects chatbot markup at page bottom.
  */
 function etl_chatbot_page_alter(&$page) {
   global $user;
