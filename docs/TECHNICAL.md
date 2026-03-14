@@ -40,7 +40,7 @@ Implements a custom node creation form for the `deferred_item` content type usin
 
 The form is exposed at `/deferred-item/add` using `hook_menu()`.
 
-\```php
+```php
 $items['deferred-item/add'] = array(
   'title'            => 'Add Deferred Item',
   'page callback'    => 'drupal_get_form',
@@ -48,7 +48,7 @@ $items['deferred-item/add'] = array(
   'access arguments' => array('create deferred_item content'),
   'type'             => MENU_CALLBACK,
 );
-\```
+```
 
 #### Form Fields
 
@@ -157,17 +157,17 @@ Status counts are normalized to always include: Pending, Learned, Dropped.
 
 Monthly statistics group results using MySQL:
 
-\```sql
+```sql
 DATE_FORMAT(FROM_UNIXTIME(n.created), '%Y-%m')
-\```
+```
 
 Because missing months are not returned by SQL, a gap-filling loop inserts zero values to maintain a continuous 12-month dataset.
 
 #### Completion Metric
 
-\```
+```
 completion = (learned / total) * 100
-\```
+```
 
 #### Visualizations
 
@@ -280,9 +280,9 @@ Users can log reflections after reviewing a concept. Drupal `#states` API condit
 
 When a reflection indicates *Again*, a reminder job is added to a `DrupalQueue`:
 
-\```php
+```php
 DrupalQueue::get('etl_reminder_queue')->createItem(...)
-\```
+```
 
 Queue configuration is defined via `hook_cron_queue_info()`.
 
@@ -345,9 +345,9 @@ Several implementation patterns are consistently used across modules.
 
 PHP values are passed to JavaScript via:
 
-\```php
+```php
 drupal_add_js($data, 'setting')
-\```
+```
 
 Used for: chatbot AJAX URL, chart data, calendar events, and validation messages.
 
@@ -370,3 +370,13 @@ All rendered output uses `check_plain()` to prevent XSS.
 ### Revision Table Queries
 
 Queries join `field_revision_*` tables rather than `field_data_*` to guarantee the latest revision values are used.
+
+---
+
+## Conclusion
+
+Explain This Later is built on a modular Drupal architecture where each custom module owns a distinct slice of the application — from form handling and calendar rendering to chatbot logic and background queue processing. The codebase favours explicit, low-magic patterns: `hook_menu()` for routing, `EntityFieldQuery` for data access, and `DrupalQueue` for deferred work, keeping each layer inspectable and independently testable.
+
+Several cross-cutting conventions — the JS settings bridge, `.once()` guards, two-pass conflict detection, and revision table queries — are applied consistently across modules, reducing the cognitive overhead of navigating between them. The `demo` module sits outside the core domain and serves as a contained reference implementation of Drupal's CRUD primitives, useful for onboarding or experimentation without touching production entities.
+
+Together, the five domain modules form a complete learning-deferral workflow: items are created with scheduling constraints, visualized on a calendar, tracked through a progress dashboard, managed via a floating assistant, and finally closed out through a reflection system that can reschedule itself automatically. The architecture is designed to be extended — new status transitions, additional chatbot handlers, or extra chart types can be added to their respective modules without affecting the others.
