@@ -297,8 +297,8 @@ This project demonstrates:
 
 ## Documentation
 
-- 📖 **[User Guide](docs/USER_GUIDE.md)**  
+- **[User Guide](docs/USER_GUIDE.md)**  
   Step-by-step instructions on how to use the application (creating items, receiving reminders, reflecting, using the chatbot, viewing progress, etc.)
 
-- 🔧 **[Technical Documentation](docs/TECHNICAL.md)**  
+- **[Technical Documentation](docs/TECHNICAL.md)**  
   Detailed explanation of custom modules, architecture decisions, entity structure, queue & cron workflows, chatbot logic, testing approach, and more.
