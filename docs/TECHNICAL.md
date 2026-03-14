@@ -253,7 +253,7 @@ Routes use `%node` wildcards so Drupal automatically loads the node. Access cont
 Two transitions are supported:
 
 - Pending → Learned
-- Pending → Dropped
+- Learned → Dropped
 
 A shared helper `_etl_status_update()` updates the node field and saves the node.
 
