@@ -41,10 +41,10 @@ Users create a custom content type called **Deferred Item** with the following f
 | Field | Details |
 |---|---|
 | Title | Required |
-| Description | Required |
-| What confused them | Required |
-| Reference URL | Optional |
-| Supporting documents | Optional |
+| What did you not understand | Required |
+| Reference Link | Optional |
+| Personal Note | Optional |
+| Supporting Document | Optional |
 | Reminder date & time | Required |
 
 **Initial Status:** `Pending`
@@ -292,3 +292,13 @@ This project demonstrates:
 - Automated scheduling and notification systems
 - Conversational UI integration inside Drupal
 - Test-driven feature validation
+
+---
+
+## Documentation
+
+- 📖 **[User Guide](docs/USER_GUIDE.md)**  
+  Step-by-step instructions on how to use the application (creating items, receiving reminders, reflecting, using the chatbot, viewing progress, etc.)
+
+- 🔧 **[Technical Documentation](docs/TECHNICAL.md)**  
+  Detailed explanation of custom modules, architecture decisions, entity structure, queue & cron workflows, chatbot logic, testing approach, and more.
