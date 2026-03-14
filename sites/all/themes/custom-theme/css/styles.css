@@ -2084,3 +2084,36 @@ select:focus {
     display: flex;
     align-items: center;
 }
+
+
+/* Default: menu stays at top */
+.main-menu {
+  position: relative;
+  bottom: auto;
+  width: auto;
+}
+
+/* Mobile: stick menu at bottom */
+@media (max-width: 768px) {
+  .main-menu {
+    position: fixed;     /* stick to viewport */
+    bottom: 0;           /* at bottom */
+    left: 0;
+    width: 100%;         /* full width */
+    background: #fff;    /* background color */
+    z-index: 1000;       /* on top of other content */
+  }
+
+  /* adjust menu items layout for mobile */
+  .main-menu ul {
+    display: flex;
+    justify-content: space-around;
+    padding: 0.5em 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .main-menu li {
+    margin: 0;
+  }
+}

@@ -1,6 +1,6 @@
 name = ETL Chatbot
 description = Floating rule-based chatbot for Explain This Later
 core = 7.x
-package = Explain This Later
+package = Custom
 dependencies[] = node
 dependencies[] = date

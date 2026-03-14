@@ -91,7 +91,7 @@ function _etl_status_update($node, $status) {
   $lang = LANGUAGE_NONE;
   $node->field_learning_status[$lang][0]['value'] = $status;
   node_save($node);
-  drupal_goto('node/' . $node->nid);
+  // Redirect is now handled by callers, after drupal_set_message().
 }
 
 function etl_deferred_item_mark_learned($node) {
@@ -105,11 +105,13 @@ function etl_deferred_item_mark_learned($node) {
 
   _etl_status_update($node, 'Learned');
   drupal_set_message(t('Marked as Learned.'));
+  drupal_goto('node/' . $node->nid);
 }
 
 function etl_deferred_item_drop($node) {
   _etl_status_update($node, 'Dropped');
   drupal_set_message(t('Item Dropped.'));
+  drupal_goto('node/' . $node->nid);
 }
 
 /*
@@ -374,7 +376,7 @@ function etl_deferred_item_send_reminder_email($node, $account) {
     'subject' => 'Reminder: Review "' . $node->title . '"',
     'body' => "You added reflection log to understand this concept later.\n\n" .
               "Title: {$node->title}\n" .
-              "What you didn’t understand: {$what}\n" .
+              "What you didn't understand: {$what}\n" .
               "Link: " . url('node/' . $node->nid, array('absolute' => TRUE)) . "\n\n" .
               "Review and update its status.",
   );
