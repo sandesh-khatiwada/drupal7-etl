@@ -16,14 +16,12 @@
 
         // Add custom method: looseUrl – accepts domains without protocol
         $.validator.addMethod('looseUrl', function (value, element) {
-          if (this.optional(element)) {  // skip if empty (since this is optional field)
+          if (this.optional(element)) {
             return true;
           }
 
-          // Trim whitespace
           value = $.trim(value);
 
-          // Allow protocol-less domains or full URLs
           var pattern = /^(?:(?:https?:\/\/)?(?:[\w-]+\.)+[\w-]+(?:\/[\w-./?%&=]*)?)$/i;
 
           return pattern.test(value);
@@ -31,13 +29,21 @@
 
         $form.validate({
 
-          // Real-time validation on keyup/focusout
           onkeyup: function (element, event) {
             if (event.which !== 16 && event.which !== 17 && event.which !== 18 && event.which !== 91 && event.which !== 93) {
               this.element(element);
             }
           },
+
+          // Delay validation for date_popup fields so the calendar widget
+          // has time to populate the value
           onfocusout: function (element) {
+            var self = this;
+            var name = $(element).attr('name') || '';
+            if (name.indexOf('field_reminder_date') !== -1) {
+              setTimeout(function () { self.element(element); }, 300);
+              return;
+            }
             this.element(element);
           },
 
@@ -61,7 +67,7 @@
             },
 
             field_reference_link: {
-              looseUrl: true   // custom rule
+              looseUrl: true
             },
 
             'field_what_did_you_not_understan[und][0][value]': {
