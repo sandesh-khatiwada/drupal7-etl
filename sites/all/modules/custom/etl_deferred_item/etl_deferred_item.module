@@ -91,7 +91,7 @@ function _etl_status_update($node, $status) {
   $lang = LANGUAGE_NONE;
   $node->field_learning_status[$lang][0]['value'] = $status;
   node_save($node);
-  // Redirect is now handled by callers, after drupal_set_message().
+  
 }
 
 function etl_deferred_item_mark_learned($node) {

@@ -285,6 +285,11 @@ function etl_custom_forms_add_form_submit($form, &$form_state) {
   global $user;
   $values = $form_state['values'];
 
+  // Sanitize text inputs
+  $title = check_plain($values['title']);
+  $what_not_understand = filter_xss($values['field_what_did_you_not_understan']);
+  $personal_note = filter_xss($values['field_personal_note']);
+
   $node = (object) array(
     'nid' => NULL,
     'vid' => NULL,
