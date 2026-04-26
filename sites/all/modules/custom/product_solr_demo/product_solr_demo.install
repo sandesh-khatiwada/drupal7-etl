@@ -1,0 +1,63 @@
+<?php
+/**
+ * Implements hook_schema().
+ */
+function product_solr_demo_schema() {
+  $schema['product'] = array(
+    'description' => 'Stores products for Solr demo.',
+    'fields' => array(
+      'pid' => array(
+        'description' => 'Primary key: product ID.',
+        'type' => 'serial',
+        'not null' => TRUE,
+      ),
+      'title' => array(
+        'description' => 'Product title.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'description' => array(
+        'description' => 'Product description.',
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ),
+      'price' => array(
+        'description' => 'Product price.',
+        'type' => 'float',
+        'not null' => FALSE,
+      ),
+      'created' => array(
+        'description' => 'Unix timestamp when created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'changed' => array(
+        'description' => 'Unix timestamp when last changed.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('pid'),
+  );
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function product_solr_demo_install() {
+  if (!db_table_exists('product')) {
+    drupal_install_schema('product_solr_demo');
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function product_solr_demo_uninstall() {
+  drupal_uninstall_schema('product_solr_demo');
+}

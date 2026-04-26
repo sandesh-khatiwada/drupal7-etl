@@ -1,0 +1,5 @@
+name = Custom Data Search
+description = Store custom entries via UI and search them with Search API + Apache Solr.
+core = 7.x
+package = Custom
+dependencies[] = apachesolr

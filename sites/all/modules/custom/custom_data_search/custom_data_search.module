@@ -1,0 +1,295 @@
+<?php
+
+/**
+ * @file
+ * Custom Data Search — Drupal 7.
+ * Simple CRUD + Apache Solr search. Minimum functions.
+ */
+
+// ─────────────────────────────────────────────────────────────
+// 1. ROUTES
+// ─────────────────────────────────────────────────────────────
+
+function custom_data_search_menu() {
+  return array(
+    'custom-data' => array(
+      'title'            => 'Custom Data',
+      'page callback'    => 'custom_data_search_list_page',
+      'access arguments' => array('access content'),
+      'type'             => MENU_NORMAL_ITEM,
+    ),
+    'custom-data/add' => array(
+      'title'            => 'Add Entry',
+      'page callback'    => 'drupal_get_form',
+      'page arguments'   => array('custom_data_search_entry_form'),
+      'access arguments' => array('access content'),
+      'type'             => MENU_LOCAL_ACTION,
+    ),
+    'custom-data/%/edit' => array(
+      'title'            => 'Edit Entry',
+      'page callback'    => 'drupal_get_form',
+      'page arguments'   => array('custom_data_search_entry_form', 1),
+      'access arguments' => array('access content'),
+      'type'             => MENU_CALLBACK,
+    ),
+    'custom-data/%/delete' => array(
+      'title'            => 'Delete Entry',
+      'page callback'    => 'drupal_get_form',
+      'page arguments'   => array('custom_data_search_delete_form', 1),
+      'access arguments' => array('access content'),
+      'type'             => MENU_CALLBACK,
+    ),
+    'custom-data/reindex' => array(
+      'title'            => 'Reindex into Solr',
+      'page callback'    => 'custom_data_search_reindex_page',
+      'access arguments' => array('access content'),
+      'type'             => MENU_CALLBACK,
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// 2. LIST PAGE
+// ─────────────────────────────────────────────────────────────
+
+function custom_data_search_list_page() {
+  $q = isset($_GET['s']) ? check_plain(trim($_GET['s'])) : '';
+
+  // Search bar.
+  $action = url('custom-data');
+  $output  = '<form method="get" action="' . $action . '" style="display:flex;gap:.5rem;margin-bottom:1rem;">'
+    . '<input type="hidden" name="q" value="custom-data" />'
+    . '<input type="search" name="s" value="' . $q . '" placeholder="Search entries…" style="flex:1;padding:.4rem .7rem;border:1px solid #ccc;border-radius:3px;" />'
+    . '<input type="submit" value="Search" style="padding:.4rem 1rem;background:#0071b8;color:#fff;border:none;border-radius:3px;cursor:pointer;" />'
+    . ($q ? ' <a href="' . $action . '" style="padding:.4rem .7rem;border:1px solid #ccc;border-radius:3px;text-decoration:none;color:#444;">Clear</a>' : '')
+    . '</form>';
+
+  // Buttons.
+  $output .= l('+ Add entry', 'custom-data/add', array('attributes' => array('style' => 'padding:.4rem .9rem;background:#0071b8;color:#fff;border-radius:3px;text-decoration:none;margin-right:.5rem;')));
+  $output .= l('⟳ Index into Solr', 'custom-data/reindex', array('attributes' => array('style' => 'padding:.4rem .9rem;background:#5a5a5a;color:#fff;border-radius:3px;text-decoration:none;')));
+
+  // Rows: Solr if searching, DB if not.
+  $rows = $q ? custom_data_search_solr($q) : db_select('custom_data_entries', 'e')->fields('e')->orderBy('e.created', 'DESC')->execute()->fetchAll();
+
+  // Table.
+  $table_rows = array();
+  foreach ($rows as $row) {
+    $table_rows[] = array(
+      check_plain($row->id),
+      check_plain($row->title),
+      check_plain(drupal_strlen($row->body) > 100 ? drupal_substr($row->body, 0, 100) . '…' : $row->body),
+      format_date($row->created, 'short'),
+      l('Edit', 'custom-data/' . $row->id . '/edit') . ' | ' . l('Delete', 'custom-data/' . $row->id . '/delete'),
+    );
+  }
+
+  $output .= '<br><br>' . theme('table', array(
+    'header' => array('ID', 'Title', 'Body', 'Created', 'Actions'),
+    'rows'   => $table_rows,
+    'empty'  => $q ? t('No results for "@q".', array('@q' => $q)) : t('No entries yet.'),
+  ));
+
+  return $output;
+}
+
+// ─────────────────────────────────────────────────────────────
+// 3. SOLR SEARCH
+// ─────────────────────────────────────────────────────────────
+
+function custom_data_search_solr($q) {
+  try {
+    $solr = apachesolr_get_solr(apachesolr_default_environment());
+
+    // Strip special Solr characters.
+    $escaped = trim(str_replace(array('\\','+','-','&&','||','!','(',')','[',']','{','}','^','"','~','*','?',':','/'), ' ', $q));
+
+    // Search label and body fields directly.
+    $response = $solr->search('label:' . $escaped . ' OR body:' . $escaped, array('fl' => 'id', 'rows' => 200));
+
+    // Extract IDs that belong to our entity type.
+    $ids = array();
+    if (!empty($response->response->docs)) {
+      foreach ($response->response->docs as $doc) {
+        $doc_id = is_array($doc->id) ? $doc->id[0] : $doc->id;
+        if (strpos($doc_id, '/custom_data_entry/') !== FALSE) {
+          $parts = explode('/', $doc_id);
+          $id    = (int) end($parts);
+          if ($id > 0) {
+            $ids[] = $id;
+          }
+        }
+      }
+    }
+
+    if (empty($ids)) {
+      return array();
+    }
+
+    // Load full rows from DB in Solr relevance order.
+    $db_rows = db_select('custom_data_entries', 'e')->fields('e')->condition('e.id', $ids, 'IN')->execute()->fetchAllAssoc('id');
+    $ordered = array();
+    foreach ($ids as $id) {
+      if (isset($db_rows[$id])) {
+        $ordered[] = $db_rows[$id];
+      }
+    }
+    return $ordered;
+  }
+  catch (Exception $e) {
+    drupal_set_message(t('Solr error: @m — showing DB results.', array('@m' => $e->getMessage())), 'warning');
+    // Fallback to DB LIKE search.
+    $like = '%' . db_like($q) . '%';
+    return db_select('custom_data_entries', 'e')->fields('e')
+      ->condition(db_or()->condition('e.title', $like, 'LIKE')->condition('e.body', $like, 'LIKE'))
+      ->orderBy('e.created', 'DESC')->execute()->fetchAll();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 4. REINDEX PAGE
+// ─────────────────────────────────────────────────────────────
+
+function custom_data_search_reindex_page() {
+  try {
+    $solr    = apachesolr_get_solr(apachesolr_default_environment());
+    $entries = db_select('custom_data_entries', 'e')->fields('e')->execute()->fetchAll();
+
+    if (empty($entries)) {
+      drupal_set_message(t('No entries to index.'), 'warning');
+      drupal_goto('custom-data');
+    }
+
+    $docs = array();
+    foreach ($entries as $e) {
+      $doc              = new ApacheSolrDocument();
+      $doc->id          = apachesolr_document_id($e->id, 'custom_data_entry');
+      $doc->entity_id   = $e->id;
+      $doc->entity_type = 'custom_data_entry';
+      $doc->label       = $e->title;
+      $doc->body        = $e->body;
+      $doc->created     = apachesolr_date_iso($e->created);
+      $doc->url         = url('custom-data', array('absolute' => TRUE));
+      $doc->site        = url('', array('absolute' => TRUE));
+      $doc->hash        = drupal_hmac_base64('custom_data_entry' . $e->id, drupal_get_private_key());
+      $docs[]           = $doc;
+    }
+
+    $solr->addDocuments($docs);
+    $solr->commit();
+    drupal_set_message(t('Indexed @c entries into Solr.', array('@c' => count($docs))));
+  }
+  catch (Exception $e) {
+    drupal_set_message(t('Reindex failed: @m', array('@m' => $e->getMessage())), 'error');
+  }
+
+  drupal_goto('custom-data');
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5. ADD / EDIT FORM
+// ─────────────────────────────────────────────────────────────
+
+function custom_data_search_entry_form($form, &$form_state, $id = NULL) {
+  // If editing, load existing entry.
+  $entry = NULL;
+  if ($id) {
+    $entry = db_select('custom_data_entries', 'e')->fields('e')->condition('e.id', (int) $id)->execute()->fetchObject();
+    if (!$entry) {
+      drupal_set_message(t('Entry not found.'), 'error');
+      drupal_goto('custom-data');
+    }
+    $form_state['storage']['entry_id'] = (int) $id;
+  }
+
+  $form['title'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('Title'),
+    '#default_value' => $entry ? $entry->title : '',
+    '#required'      => TRUE,
+  );
+
+  $form['body'] = array(
+    '#type'          => 'textarea',
+    '#title'         => t('Body'),
+    '#default_value' => $entry ? $entry->body : '',
+    '#rows'          => 6,
+  );
+
+  $form['submit'] = array('#type' => 'submit', '#value' => $id ? t('Update') : t('Save'));
+  $form['cancel'] = array('#markup' => ' ' . l(t('Cancel'), 'custom-data'));
+
+  return $form;
+}
+
+function custom_data_search_entry_form_submit($form, &$form_state) {
+  $id    = isset($form_state['storage']['entry_id']) ? $form_state['storage']['entry_id'] : NULL;
+  $title = trim($form_state['values']['title']);
+  $body  = $form_state['values']['body'];
+
+  if ($id) {
+    db_update('custom_data_entries')->fields(array('title' => $title, 'body' => $body))->condition('id', $id)->execute();
+    $new_id = $id;
+    drupal_set_message(t('Entry updated.'));
+  }
+  else {
+    $new_id = db_insert('custom_data_entries')->fields(array('title' => $title, 'body' => $body, 'created' => REQUEST_TIME))->execute();
+    drupal_set_message(t('Entry saved.'));
+  }
+
+  // Push to Solr immediately on save.
+  try {
+    $solr = apachesolr_get_solr(apachesolr_default_environment());
+    $e    = db_select('custom_data_entries', 'e')->fields('e')->condition('e.id', $new_id)->execute()->fetchObject();
+    $doc              = new ApacheSolrDocument();
+    $doc->id          = apachesolr_document_id($e->id, 'custom_data_entry');
+    $doc->entity_id   = $e->id;
+    $doc->entity_type = 'custom_data_entry';
+    $doc->label       = $e->title;
+    $doc->body        = $e->body;
+    $doc->created     = apachesolr_date_iso($e->created);
+    $doc->url         = url('custom-data', array('absolute' => TRUE));
+    $doc->site        = url('', array('absolute' => TRUE));
+    $doc->hash        = drupal_hmac_base64('custom_data_entry' . $e->id, drupal_get_private_key());
+    $solr->addDocuments(array($doc));
+    $solr->commit();
+  }
+  catch (Exception $e) {
+    // Silently skip — entry is saved in DB, Solr can be reindexed manually.
+  }
+
+  $form_state['redirect'] = 'custom-data';
+}
+
+// ─────────────────────────────────────────────────────────────
+// 6. DELETE FORM
+// ─────────────────────────────────────────────────────────────
+
+function custom_data_search_delete_form($form, &$form_state, $id) {
+  $entry = db_select('custom_data_entries', 'e')->fields('e')->condition('e.id', (int) $id)->execute()->fetchObject();
+  if (!$entry) {
+    drupal_set_message(t('Entry not found.'), 'error');
+    drupal_goto('custom-data');
+  }
+  $form_state['storage']['entry_id'] = (int) $id;
+  return confirm_form($form, t('Delete "@t"?', array('@t' => $entry->title)), 'custom-data', t('This cannot be undone.'), t('Delete'), t('Cancel'));
+}
+
+function custom_data_search_delete_form_submit($form, &$form_state) {
+  $id = $form_state['storage']['entry_id'];
+
+  // Remove from DB.
+  db_delete('custom_data_entries')->condition('id', $id)->execute();
+
+  // Remove from Solr immediately.
+  try {
+    $solr = apachesolr_get_solr(apachesolr_default_environment());
+    $solr->deleteById(apachesolr_document_id($id, 'custom_data_entry'));
+    $solr->commit();
+  }
+  catch (Exception $e) {
+    // Silently skip.
+  }
+
+  drupal_set_message(t('Entry deleted.'));
+  $form_state['redirect'] = 'custom-data';
+}

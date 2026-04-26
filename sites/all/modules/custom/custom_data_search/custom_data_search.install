@@ -1,0 +1,48 @@
+<?php
+
+/**
+ * @file
+ * Install: creates and removes the custom_data_entries table.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function custom_data_search_schema() {
+  return array(
+    'custom_data_entries' => array(
+      'description' => 'Stores custom data entries.',
+      'fields' => array(
+        'id' => array(
+          'type'     => 'serial',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ),
+        'title' => array(
+          'type'     => 'varchar',
+          'length'   => 255,
+          'not null' => TRUE,
+          'default'  => '',
+        ),
+        'body' => array(
+          'type'     => 'text',
+          'size'     => 'big',
+          'not null' => FALSE,
+        ),
+        'created' => array(
+          'type'     => 'int',
+          'not null' => TRUE,
+          'default'  => 0,
+        ),
+      ),
+      'primary key' => array('id'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function custom_data_search_uninstall() {
+  drupal_uninstall_schema('custom_data_search');
+}

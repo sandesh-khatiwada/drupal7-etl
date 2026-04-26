@@ -1,0 +1,311 @@
+<?php
+/**
+ * Implements hook_entity_info().
+ */
+function product_solr_demo_entity_info() {
+  $info['product'] = array(
+    'label' => t('Product'),
+    'controller class' => 'EntityAPIController',
+    'base table' => 'product',
+    'entity keys' => array(
+      'id' => 'pid',
+      'label' => 'title',
+    ),
+    'uri callback' => 'product_solr_demo_uri',
+    'bundles' => array(
+      'product' => array(
+        'label' => t('Product'),
+      ),
+    ),
+  );
+  return $info;
+}
+
+/**
+ * URI callback for the product entity.
+ */
+function product_solr_demo_uri($entity) {
+  return array('path' => 'product/' . $entity->pid);
+}
+
+/**
+ * Make the custom entity indexable by Apache Solr.
+ */
+function product_solr_demo_entity_info_alter(&$entity_info) {
+  if (isset($entity_info['product'])) {
+    $entity_info['product']['bundles']['product']['apachesolr'] = array('index' => TRUE);
+  }
+}
+
+/**
+ * Index product fields into Solr (dynamic fields).
+ * Uses the specific hook for our entity type.
+ */
+function product_solr_demo_apachesolr_index_document_build_product(ApacheSolrDocument $document, $entity, $env_id) {
+  // Basic fields that Solr already knows (id, entity_type, etc.) are handled by apachesolr.
+  // We only add our custom data using dynamic fields from the schema.
+
+  $document->addField('ts_product_title', $entity->title);           // searchable text (single)
+  if (!empty($entity->description)) {
+    $document->addField('ts_product_description', $entity->description);
+  }
+  if (isset($entity->price)) {
+    $document->addField('fs_product_price', (float) $entity->price); // float for sorting/filtering if you want later
+  }
+}
+
+/**
+ * Menu items.
+ */
+function product_solr_demo_menu() {
+  $items = array();
+
+  // Add product
+  $items['products/add'] = array(
+    'title' => 'Add Product',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('product_solr_demo_product_form'),
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  // Product list (very basic)
+  $items['products'] = array(
+    'title' => 'Products',
+    'page callback' => 'product_solr_demo_product_list',
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  // Search products (uses Solr)
+  $items['products/search'] = array(
+    'title' => 'Search Products',
+    'page callback' => 'product_solr_demo_search_page',
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Simple product form (add + edit).
+ */
+function product_solr_demo_product_form($form, &$form_state, $product = NULL) {
+  if (!$product) {
+    $product = (object) array(
+      'pid' => 0,
+      'title' => '',
+      'description' => '',
+      'price' => '',
+    );
+  }
+
+  $form['pid'] = array(
+    '#type' => 'value',
+    '#value' => $product->pid,
+  );
+
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Product Title'),
+    '#default_value' => $product->title,
+    '#required' => TRUE,
+  );
+
+  $form['description'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Description'),
+    '#default_value' => $product->description,
+  );
+
+  $form['price'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Price'),
+    '#default_value' => $product->price,
+    '#description' => t('e.g. 29.99'),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save Product'),
+  );
+
+  return $form;
+}
+
+
+function product_solr_demo_product_form_submit($form, &$form_state) {
+  $product = (object) $form_state['values'];
+  $product->changed = REQUEST_TIME;
+  if (empty($product->created)) {
+    $product->created = REQUEST_TIME;
+  }
+
+  entity_save('product', $product);
+
+
+  try {
+    $solr = apachesolr_get_solr(apachesolr_default_environment());
+
+    $doc                        = new ApacheSolrDocument();
+    $doc->id                    = apachesolr_document_id($product->pid, 'product');
+    $doc->entity_id             = $product->pid;
+    $doc->entity_type           = 'product';
+    $doc->ts_product_title      = $product->title;
+    $doc->ts_product_description = !empty($product->description) ? $product->description : '';
+    $doc->fs_product_price      = !empty($product->price) ? (float) $product->price : 0;
+    $doc->label                 = $product->title;
+    $doc->url                   = url('product/' . $product->pid, array('absolute' => TRUE));
+    $doc->site                  = url('', array('absolute' => TRUE));
+
+    $solr->addDocuments(array($doc));
+    $solr->commit();
+
+    drupal_set_message(t('Product saved and indexed in Solr.'));
+  }
+  catch (Exception $e) {
+    drupal_set_message(t('Product saved but Solr indexing failed: @m', array('@m' => $e->getMessage())), 'warning');
+  }
+
+  $form_state['redirect'] = 'products';
+}
+
+
+/**
+ * Basic list of all products (for demo).
+ */
+function product_solr_demo_product_list() {
+  $products = entity_load('product');
+  $header = array(t('Title'), t('Price'), t('Operations'));
+  $rows = array();
+
+  foreach ($products as $product) {
+    $rows[] = array(
+      l($product->title, 'product/' . $product->pid),
+      $product->price ? '$' . number_format($product->price, 2) : '',
+      l(t('edit'), 'products/add/' . $product->pid), // edit not fully wired, but easy to extend
+    );
+  }
+
+  return array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('No products yet.'),
+  );
+}
+
+/**
+ * Search page (form + results from Solr).
+ */
+function product_solr_demo_search_page() {
+  $output = '';
+  $form = drupal_get_form('product_solr_demo_search_form');
+  $output .= drupal_render($form);
+
+  if (isset($_GET['keys']) && $_GET['keys'] !== '') {
+    $keys = check_plain($_GET['keys']);
+    $results = product_solr_demo_perform_solr_search($keys);
+
+    if ($results) {
+      $output .= '<h2>Search results for: ' . $keys . '</h2>';
+      $output .= theme('item_list', array('items' => $results));
+    }
+    else {
+      $output .= '<p>No products found.</p>';
+    }
+  }
+
+  return $output;
+}
+
+
+function product_solr_demo_search_form($form, &$form_state) {
+  $form['keys'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Search products'),
+    '#default_value' => isset($_GET['keys']) ? $_GET['keys'] : '',
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Search in Solr'),
+  );
+
+  $form['#action'] = url('products/search'); // GET for easy bookmarking
+  $form['#method'] = 'get';
+
+  return $form;
+}
+
+/*
+ * Returns first value if array, otherwise returns value as-is.
+ */
+function _product_solr_demo_first($value) {
+  if (is_array($value)) {
+    return reset($value);
+  }
+  return $value;
+}
+
+function product_solr_demo_perform_solr_search($keys) {
+  try {
+    $solr = apachesolr_get_solr(apachesolr_default_environment());
+
+    // Strip special Solr characters.
+    $escaped = trim(str_replace(
+      array('\\','+','-','&&','||','!','(',')','[',']','{','}','^','"','~','*','?',':','/'),
+      ' ',
+      $keys
+    ));
+
+    // Search directly on our custom fields.
+    $response = $solr->search(
+      'ts_product_title:' . $escaped . ' OR ts_product_description:' . $escaped,
+      array('fl' => 'id,ts_product_title,ts_product_description,fs_product_price', 'rows' => 20),
+      'GET'
+    );
+
+    watchdog('solr_debug', '<pre>' . print_r($response, TRUE) . '</pre>');
+
+    $items = array();
+
+    if (!empty($response->response->docs)) {
+      foreach ($response->response->docs as $doc) {
+        $doc_id = is_array($doc->id) ? $doc->id[0] : $doc->id;
+
+        // Only process our product documents.
+        if (strpos($doc_id, '/product/') === FALSE) {
+          continue;
+        }
+
+        $parts = explode('/', $doc_id);
+        $pid   = (int) end($parts);
+        if ($pid <= 0) continue;
+       $title = _product_solr_demo_first($doc->ts_product_title);
+       $desc  = _product_solr_demo_first($doc->ts_product_description);
+       $price = _product_solr_demo_first($doc->fs_product_price);
+       
+       // sanitize after normalization
+       $title = $title !== NULL ? check_plain($title) : t('Untitled');
+       $desc  = $desc !== NULL ? check_plain($desc) : '';
+       
+       $price_text = '';
+       if ($price !== NULL && $price !== '') {
+         $price_text = '$' . number_format((float) $price, 2);
+       }
+
+        $items[] = l($title, 'product/' . $pid) . ' — ' . $price . '<br>' . $desc;
+      }
+    }
+
+    return $items;
+
+  }
+  catch (Exception $e) {
+    watchdog('product_solr_demo', 'Solr search failed: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    drupal_set_message(t('Search error: @m', array('@m' => $e->getMessage())), 'error');
+    return FALSE;
+  }
+}

@@ -1,0 +1,8 @@
+name = Product Solr Demo
+description = Basic custom entity + Solr 9 demonstration (Drupal 7)
+core = 7.x 
+package = Custom
+dependencies[] = entity
+dependencies[] = apachesolr
+files[] = product_solr_demo.module
+files[] = product_solr_demo.install
